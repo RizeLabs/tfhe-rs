@@ -8,11 +8,13 @@
 
 #include "crypto/keyswitch.cuh"
 #include "device.h"
+#include "helper_multi_gpu.h"
 #include "integer.h"
 #include "integer/integer.cuh"
 #include "linear_algebra.h"
 #include "programmable_bootstrap.h"
 #include "utils/helper.cuh"
+#include "utils/helper_multi_gpu.cuh"
 #include "utils/kernel_dimensions.cuh"
 #include <fstream>
 #include <iostream>
@@ -339,15 +341,55 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
     luts_message_carry->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
 
     auto active_gpu_count = get_active_gpu_count(total_count, gpu_count);
+
+    /// For multi GPU execution we create vectors of pointers for inputs and
+    /// outputs
+    std::vector<Torus *> lwe_array_in_vec;
+    std::vector<Torus *> lwe_after_ks_vec;
+    std::vector<Torus *> lwe_indexes_in_vec;
+    std::vector<Torus *> lwe_trivial_indexes_vec;
+    if (gpu_count > 1) {
+      multi_gpu_scatter<Torus>(streams, gpu_indexes, gpu_count,
+                               lwe_array_in_vec, new_blocks, lwe_indexes_in_vec,
+                               lwe_indexes_in, message_count,
+                               big_lwe_dimension + 1);
+      multi_gpu_scatter<Torus>(streams, gpu_indexes, gpu_count,
+                               lwe_after_ks_vec, small_lwe_vector,
+                               lwe_trivial_indexes_vec, lwe_indexes_in,
+                               message_count, lwe_dimension + 1);
+    } else {
+      /// GPU 0 retains the original array
+      lwe_array_in_vec.push_back(new_blocks);
+      lwe_after_ks_vec.push_back(small_lwe_vector);
+      lwe_indexes_in_vec.push_back(lwe_indexes_in);
+      lwe_trivial_indexes_vec.push_back(lwe_indexes_in);
+    }
+
     /// Apply KS to go from a big LWE dimension to a small LWE dimension
     /// After this keyswitch execution, we need to synchronize the streams
     /// because the keyswitch and PBS do not operate on the same number of
     /// inputs
-    execute_keyswitch<Torus>(streams, gpu_indexes, gpu_count, small_lwe_vector,
-                             lwe_indexes_in, new_blocks, lwe_indexes_in, ksks,
+    execute_keyswitch<Torus>(streams, gpu_indexes, gpu_count, lwe_after_ks_vec,
+                             lwe_trivial_indexes_vec, lwe_array_in_vec,
+                             lwe_indexes_in_vec, ksks,
                              polynomial_size * glwe_dimension, lwe_dimension,
                              mem_ptr->params.ks_base_log,
                              mem_ptr->params.ks_level, message_count, true);
+
+    /// Copy data back to GPU 0 and release vecs
+    if (gpu_count > 1) {
+      multi_gpu_gather<Torus>(streams, gpu_indexes, gpu_count, small_lwe_vector,
+                              lwe_after_ks_vec, lwe_indexes_in, message_count,
+                              lwe_dimension + 1);
+      multi_gpu_release<Torus>(streams, gpu_indexes, lwe_array_in_vec);
+      multi_gpu_release<Torus>(streams, gpu_indexes, lwe_after_ks_vec);
+      multi_gpu_release<Torus>(streams, gpu_indexes, lwe_indexes_in_vec);
+      multi_gpu_release<Torus>(streams, gpu_indexes, lwe_trivial_indexes_vec);
+    }
+    lwe_array_in_vec.clear();
+    lwe_after_ks_vec.clear();
+    lwe_indexes_in_vec.clear();
+    lwe_trivial_indexes_vec.clear();
 
     /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
     /// dimension to a big LWE dimension
