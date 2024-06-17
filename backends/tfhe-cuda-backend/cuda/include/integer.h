@@ -493,6 +493,13 @@ template <typename Torus> struct int_radix_lut {
   Torus *tmp_lwe_before_ks;
   Torus *tmp_lwe_after_ks;
 
+  /// For multi GPU execution we create vectors of pointers for inputs and
+  /// outputs
+  std::vector<Torus *> lwe_array_in_vec;
+  std::vector<Torus *> lwe_after_ks_vec;
+  std::vector<Torus *> lwe_indexes_in_vec;
+  std::vector<Torus *> lwe_trivial_indexes_vec;
+
   int_radix_lut(cudaStream_t *streams, uint32_t *gpu_indexes,
                 uint32_t gpu_count, int_radix_params params, uint32_t num_luts,
                 uint32_t num_radix_blocks, bool allocate_gpu_memory) {
@@ -568,6 +575,16 @@ template <typename Torus> struct int_radix_lut {
       cuda_stream_add_callback(streams[0], gpu_indexes[0],
                                host_free_on_stream_callback, h_lwe_indexes);
 
+      /// With multiple GPUs we allocate arrays to be pushed to the vectors and
+      /// copy data on each GPU then when we gather data to GPU 0 we can copy
+      /// back to the original indexing
+      multi_gpu_lwe_init(streams, gpu_indexes, gpu_count, lwe_array_in_vec,
+                         lwe_indexes_in_vec, num_radix_blocks,
+                         params.big_lwe_dimension + 1);
+      multi_gpu_lwe_init(streams, gpu_indexes, gpu_count, lwe_after_ks_vec,
+                         lwe_trivial_indexes_vec, num_radix_blocks,
+                         params.small_lwe_dimension + 1);
+
       // Keyswitch
       Torus big_size =
           (params.big_lwe_dimension + 1) * num_radix_blocks * sizeof(Torus);
@@ -599,6 +616,14 @@ template <typename Torus> struct int_radix_lut {
     // Keyswitch
     tmp_lwe_before_ks = base_lut_object->tmp_lwe_before_ks;
     tmp_lwe_after_ks = base_lut_object->tmp_lwe_after_ks;
+
+    /// With multiple GPUs we allocate arrays to be pushed to the vectors and
+    /// copy data on each GPU then when we gather data to GPU 0 we can copy back
+    /// to the original indexing
+    lwe_array_in_vec = base_lut_object->lwe_array_in_vec;
+    lwe_after_ks_vec = base_lut_object->lwe_after_ks_vec;
+    lwe_indexes_in_vec = base_lut_object->lwe_indexes_in_vec;
+    lwe_trivial_indexes_vec = base_lut_object->lwe_trivial_indexes_vec;
 
     mem_reuse = true;
 
@@ -721,6 +746,11 @@ template <typename Torus> struct int_radix_lut {
         cuda_synchronize_stream(streams[i], gpu_indexes[i]);
       }
       buffer.clear();
+
+      multi_gpu_lwe_release(streams, gpu_indexes, lwe_array_in_vec);
+      multi_gpu_lwe_release(streams, gpu_indexes, lwe_after_ks_vec);
+      multi_gpu_lwe_release(streams, gpu_indexes, lwe_indexes_in_vec);
+      multi_gpu_lwe_release(streams, gpu_indexes, lwe_trivial_indexes_vec);
     }
   }
 };
