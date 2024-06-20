@@ -123,10 +123,10 @@ __host__ void cuda_keyswitch_lwe_ciphertext_vector(
 template <typename Torus>
 void execute_keyswitch(cudaStream_t *streams, uint32_t *gpu_indexes,
                        uint32_t gpu_count,
-                       const std::vector<Torus *> &lwe_array_out,
-                       const std::vector<Torus *> &lwe_output_indexes,
-                       const std::vector<Torus *> &lwe_array_in,
-                       const std::vector<Torus *> &lwe_input_indexes,
+                       const LweArrayVariant<Torus> &lwe_array_out,
+                       const LweArrayVariant<Torus> &lwe_output_indexes,
+                       const LweArrayVariant<Torus> &lwe_array_in,
+                       const LweArrayVariant<Torus> &lwe_input_indexes,
                        Torus **ksks, uint32_t lwe_dimension_in,
                        uint32_t lwe_dimension_out, uint32_t base_log,
                        uint32_t level_count, uint32_t num_samples,
@@ -140,11 +140,20 @@ void execute_keyswitch(cudaStream_t *streams, uint32_t *gpu_indexes,
 #pragma omp parallel for num_threads(active_gpu_count)
   for (uint i = 0; i < active_gpu_count; i++) {
     int num_samples_on_gpu = get_num_inputs_on_gpu(num_samples, i, gpu_count);
+
+    Torus *current_lwe_array_out = GET_VARIANT_ELEMENT(lwe_array_out, i);
+    Torus *current_lwe_output_indexes =
+        GET_VARIANT_ELEMENT(lwe_output_indexes, i);
+    Torus *current_lwe_array_in = GET_VARIANT_ELEMENT(lwe_array_in, i);
+    Torus *current_lwe_input_indexes =
+        GET_VARIANT_ELEMENT(lwe_input_indexes, i);
+
     // Compute Keyswitch
     cuda_keyswitch_lwe_ciphertext_vector<Torus>(
-        streams[i], gpu_indexes[i], lwe_array_out[i], lwe_output_indexes[i],
-        lwe_array_in[i], lwe_input_indexes[i], ksks[i], lwe_dimension_in,
-        lwe_dimension_out, base_log, level_count, num_samples_on_gpu);
+        streams[i], gpu_indexes[i], current_lwe_array_out,
+        current_lwe_output_indexes, current_lwe_array_in,
+        current_lwe_input_indexes, ksks[i], lwe_dimension_in, lwe_dimension_out,
+        base_log, level_count, num_samples_on_gpu);
   }
 
   if (sync_streams)

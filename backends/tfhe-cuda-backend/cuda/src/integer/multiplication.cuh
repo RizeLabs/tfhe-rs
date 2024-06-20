@@ -348,14 +348,24 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
     std::vector<Torus *> new_blocks_vec = luts_message_carry->lwe_array_in_vec;
     std::vector<Torus *> small_lwe_vector_vec =
         luts_message_carry->lwe_after_ks_vec;
-    std::vector<Torus *> lwe_indexes_in_vec =
-        luts_message_carry->lwe_indexes_in_vec;
+    std::vector<Torus *> lwe_after_pbs_vec =
+        luts_message_carry->lwe_after_pbs_vec;
     std::vector<Torus *> lwe_trivial_indexes_vec =
         luts_message_carry->lwe_trivial_indexes_vec;
 
+    auto h_lwe_indexes_in = luts_message_carry->h_lwe_indexes_in;
+    auto h_lwe_indexes_out = luts_message_carry->h_lwe_indexes_out;
+    cuda_memcpy_async_to_cpu(h_lwe_indexes_in, lwe_indexes_in,
+                             total_count * sizeof(Torus), streams[0],
+                             gpu_indexes[0]);
+    cuda_memcpy_async_to_cpu(h_lwe_indexes_out, lwe_indexes_out,
+                             total_count * sizeof(Torus), streams[0],
+                             gpu_indexes[0]);
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+
     multi_gpu_lwe_scatter<Torus>(streams, gpu_indexes, gpu_count,
-                                 new_blocks_vec, new_blocks, lwe_indexes_in,
-                                 message_count, big_lwe_size);
+                                 new_blocks_vec, new_blocks, h_lwe_indexes_in,
+                                 message_count, big_lwe_size, false);
 
     /// Apply KS to go from a big LWE dimension to a small LWE dimension
     /// After this keyswitch execution, we need to synchronize the streams
@@ -365,23 +375,33 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
         streams, gpu_indexes, gpu_count, small_lwe_vector_vec,
         lwe_trivial_indexes_vec, new_blocks_vec, lwe_trivial_indexes_vec, ksks,
         big_lwe_dimension, lwe_dimension, mem_ptr->params.ks_base_log,
-        mem_ptr->params.ks_level, message_count, true);
+        mem_ptr->params.ks_level, message_count, false);
 
-    /// Copy data back to GPU 0 and release vecs
-    multi_gpu_lwe_gather<Torus>(streams, gpu_indexes, gpu_count,
-                                small_lwe_vector, small_lwe_vector_vec,
-                                lwe_indexes_in, message_count, small_lwe_size);
+    /// Copy data back to GPU 0, rebuild the lwe array, and scatter again on a
+    /// different configuration
+    multi_gpu_lwe_gather<Torus>(
+        streams, gpu_indexes, gpu_count, small_lwe_vector, small_lwe_vector_vec,
+        h_lwe_indexes_in, message_count, small_lwe_size);
+
+    multi_gpu_lwe_scatter<Torus>(
+        streams, gpu_indexes, gpu_count, small_lwe_vector_vec, small_lwe_vector,
+        h_lwe_indexes_in, total_count, small_lwe_size, false);
 
     /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
     /// dimension to a big LWE dimension
-    execute_pbs<Torus>(streams, gpu_indexes, gpu_count, new_blocks,
-                       lwe_indexes_out, luts_message_carry->lut_vec,
-                       luts_message_carry->lut_indexes_vec, small_lwe_vector,
-                       lwe_indexes_in, bsks, luts_message_carry->buffer,
-                       glwe_dimension, lwe_dimension, polynomial_size,
+    execute_pbs<Torus>(streams, gpu_indexes, gpu_count, lwe_after_pbs_vec,
+                       lwe_trivial_indexes_vec, luts_message_carry->lut_vec,
+                       luts_message_carry->lut_indexes_vec,
+                       small_lwe_vector_vec, lwe_trivial_indexes_vec, bsks,
+                       luts_message_carry->buffer, glwe_dimension,
+                       lwe_dimension, polynomial_size,
                        mem_ptr->params.pbs_base_log, mem_ptr->params.pbs_level,
                        mem_ptr->params.grouping_factor, total_count, 2, 0,
-                       max_shared_memory, mem_ptr->params.pbs_type, true);
+                       max_shared_memory, mem_ptr->params.pbs_type, false);
+
+    multi_gpu_lwe_gather<Torus>(streams, gpu_indexes, gpu_count, new_blocks,
+                                lwe_after_pbs_vec, h_lwe_indexes_out,
+                                total_count, big_lwe_size);
 
     int rem_blocks = (r > chunk_size) ? r % chunk_size * num_blocks : 0;
     int new_blocks_created = 2 * ch_amount * num_blocks;
