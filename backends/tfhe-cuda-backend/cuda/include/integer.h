@@ -493,7 +493,6 @@ template <typename Torus> struct int_radix_lut {
   // lwe_indexes_in != lwe_indexes_out
   Torus *lwe_trivial_indexes;
   Torus *tmp_lwe_before_ks;
-  Torus *tmp_lwe_after_ks;
 
   /// For multi GPU execution we create vectors of pointers for inputs and
   /// outputs
@@ -604,8 +603,6 @@ template <typename Torus> struct int_radix_lut {
           (params.small_lwe_dimension + 1) * num_radix_blocks * sizeof(Torus);
       tmp_lwe_before_ks =
           (Torus *)cuda_malloc_async(big_size, streams[0], gpu_indexes[0]);
-      tmp_lwe_after_ks =
-          (Torus *)cuda_malloc_async(small_size, streams[0], gpu_indexes[0]);
     }
   }
 
@@ -627,7 +624,6 @@ template <typename Torus> struct int_radix_lut {
     buffer = base_lut_object->buffer;
     // Keyswitch
     tmp_lwe_before_ks = base_lut_object->tmp_lwe_before_ks;
-    tmp_lwe_after_ks = base_lut_object->tmp_lwe_after_ks;
 
     /// With multiple GPUs we allocate arrays to be pushed to the vectors and
     /// copy data on each GPU then when we gather data to GPU 0 we can copy back
@@ -750,7 +746,6 @@ template <typename Torus> struct int_radix_lut {
 
     if (!mem_reuse) {
       cuda_drop_async(tmp_lwe_before_ks, streams[0], gpu_indexes[0]);
-      cuda_drop_async(tmp_lwe_after_ks, streams[0], gpu_indexes[0]);
       cuda_synchronize_stream(streams[0], gpu_indexes[0]);
       for (int i = 0; i < buffer.size(); i++) {
         switch (params.pbs_type) {
