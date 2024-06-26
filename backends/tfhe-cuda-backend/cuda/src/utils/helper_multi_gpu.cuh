@@ -55,7 +55,7 @@ void multi_gpu_lwe_init(cudaStream_t *streams, uint32_t *gpu_indexes,
   dest.resize(active_gpu_count);
 #pragma omp parallel for num_threads(active_gpu_count)
   for (uint i = 0; i < active_gpu_count; i++) {
-    auto inputs_on_gpu = get_num_inputs_on_gpu(num_inputs, i, gpu_count);
+    auto inputs_on_gpu = get_num_inputs_on_gpu(num_inputs, i, active_gpu_count);
     Torus *d_array = (Torus *)cuda_malloc_async(
         inputs_on_gpu * elements_per_input * sizeof(Torus), streams[i],
         gpu_indexes[i]);
@@ -83,12 +83,12 @@ void multi_gpu_lwe_scatter(cudaStream_t *streams, uint32_t *gpu_indexes,
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 
   dest.resize(active_gpu_count);
-  // #pragma omp parallel for num_threads(active_gpu_count)
+#pragma omp parallel for num_threads(active_gpu_count)
   for (uint i = 0; i < active_gpu_count; i++) {
-    auto inputs_on_gpu = get_num_inputs_on_gpu(num_inputs, i, gpu_count);
+    auto inputs_on_gpu = get_num_inputs_on_gpu(num_inputs, i, active_gpu_count);
     auto gpu_offset = 0;
     for (uint j = 0; j < i; j++) {
-      gpu_offset += get_num_inputs_on_gpu(num_inputs, j, gpu_count);
+      gpu_offset += get_num_inputs_on_gpu(num_inputs, j, active_gpu_count);
     }
     auto src_indexes = h_src_indexes + gpu_offset;
 
@@ -127,10 +127,10 @@ void multi_gpu_lwe_gather(cudaStream_t *streams, uint32_t *gpu_indexes,
 
 #pragma omp parallel for num_threads(active_gpu_count)
   for (uint i = 0; i < active_gpu_count; i++) {
-    auto inputs_on_gpu = get_num_inputs_on_gpu(num_inputs, i, gpu_count);
+    auto inputs_on_gpu = get_num_inputs_on_gpu(num_inputs, i, active_gpu_count);
     auto gpu_offset = 0;
     for (uint j = 0; j < i; j++) {
-      gpu_offset += get_num_inputs_on_gpu(num_inputs, j, gpu_count);
+      gpu_offset += get_num_inputs_on_gpu(num_inputs, j, active_gpu_count);
     }
     auto dest_indexes = h_dest_indexes + gpu_offset;
 
@@ -170,10 +170,10 @@ void multi_gpu_lwe_trivial_scatter(cudaStream_t *streams, uint32_t *gpu_indexes,
 
 #pragma omp parallel for num_threads(active_gpu_count)
   for (uint i = 0; i < active_gpu_count; i++) {
-    auto inputs_on_gpu = get_num_inputs_on_gpu(num_inputs, i, gpu_count);
+    auto inputs_on_gpu = get_num_inputs_on_gpu(num_inputs, i, active_gpu_count);
     auto gpu_offset = 0;
     for (uint j = 0; j < i; j++) {
-      gpu_offset += get_num_inputs_on_gpu(num_inputs, j, gpu_count);
+      gpu_offset += get_num_inputs_on_gpu(num_inputs, j, active_gpu_count);
     }
 
     auto d_dest = dest[i];
@@ -206,10 +206,10 @@ void multi_gpu_lwe_trivial_gather(cudaStream_t *streams, uint32_t *gpu_indexes,
 
 #pragma omp parallel for num_threads(active_gpu_count)
   for (uint i = 0; i < active_gpu_count; i++) {
-    auto inputs_on_gpu = get_num_inputs_on_gpu(num_inputs, i, gpu_count);
+    auto inputs_on_gpu = get_num_inputs_on_gpu(num_inputs, i, active_gpu_count);
     auto gpu_offset = 0;
     for (uint j = 0; j < i; j++) {
-      gpu_offset += get_num_inputs_on_gpu(num_inputs, j, gpu_count);
+      gpu_offset += get_num_inputs_on_gpu(num_inputs, j, active_gpu_count);
     }
 
     auto d_dest = dest + gpu_offset * elements_per_input;

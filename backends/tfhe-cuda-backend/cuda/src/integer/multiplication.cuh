@@ -341,8 +341,6 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
 
     luts_message_carry->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
 
-    auto active_gpu_count = get_active_gpu_count(total_count, gpu_count);
-
     /// For multi GPU execution we create vectors of pointers for inputs and
     /// outputs
     std::vector<Torus *> new_blocks_vec = luts_message_carry->lwe_array_in_vec;
@@ -353,21 +351,24 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
     std::vector<Torus *> lwe_trivial_indexes_vec =
         luts_message_carry->lwe_trivial_indexes_vec;
 
-    if (gpu_count == 1) {
+    // TODO We should be able to run keyswitch on a single GPU and PBS on
+    // multiple GPUs if needed
+    auto active_gpu_count = get_active_gpu_count(total_count, gpu_count);
+    if (active_gpu_count == 1) {
       /// Apply KS to go from a big LWE dimension to a small LWE dimension
       /// After this keyswitch execution, we need to synchronize the streams
       /// because the keyswitch and PBS do not operate on the same number of
       /// inputs
-      execute_keyswitch<Torus>(
-          streams, gpu_indexes, gpu_count, small_lwe_vector, lwe_indexes_in,
-          new_blocks, lwe_indexes_in, ksks, polynomial_size * glwe_dimension,
-          lwe_dimension, mem_ptr->params.ks_base_log, mem_ptr->params.ks_level,
-          message_count, true);
+      execute_keyswitch<Torus>(streams, gpu_indexes, 1, small_lwe_vector,
+                               lwe_indexes_in, new_blocks, lwe_indexes_in, ksks,
+                               polynomial_size * glwe_dimension, lwe_dimension,
+                               mem_ptr->params.ks_base_log,
+                               mem_ptr->params.ks_level, message_count, true);
 
       /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
       /// dimension to a big LWE dimension
       execute_pbs<Torus>(
-          streams, gpu_indexes, gpu_count, new_blocks, lwe_indexes_out,
+          streams, gpu_indexes, 1, new_blocks, lwe_indexes_out,
           luts_message_carry->lut_vec, luts_message_carry->lut_indexes_vec,
           small_lwe_vector, lwe_indexes_in, bsks, luts_message_carry->buffer,
           glwe_dimension, lwe_dimension, polynomial_size,
