@@ -74,7 +74,8 @@ template <typename Torus>
 void multi_gpu_lwe_scatter(cudaStream_t *streams, uint32_t *gpu_indexes,
                            uint32_t gpu_count, std::vector<Torus *> &dest,
                            Torus *src, Torus *h_src_indexes,
-                           uint32_t num_inputs, uint32_t elements_per_input,
+                           bool is_trivial_index, uint32_t num_inputs,
+                           uint32_t elements_per_input,
                            bool sync_threads = true) {
 
   auto active_gpu_count = get_active_gpu_count(num_inputs, gpu_count);
@@ -90,17 +91,27 @@ void multi_gpu_lwe_scatter(cudaStream_t *streams, uint32_t *gpu_indexes,
     for (uint j = 0; j < i; j++) {
       gpu_offset += get_num_inputs_on_gpu(num_inputs, j, active_gpu_count);
     }
-    auto src_indexes = h_src_indexes + gpu_offset;
 
-    // TODO Check if we can increase parallelization by adding another omp
-    // clause here
-    for (uint j = 0; j < inputs_on_gpu; j++) {
-      auto d_dest = dest[i] + j * elements_per_input;
-      auto d_src = src + src_indexes[j] * elements_per_input;
+    if (is_trivial_index) {
+      auto d_dest = dest[i];
+      auto d_src = src + gpu_offset * elements_per_input;
+      cuda_memcpy_async_gpu_to_gpu(
+          d_dest, d_src, inputs_on_gpu * elements_per_input * sizeof(Torus),
+          streams[i], gpu_indexes[i]);
 
-      cuda_memcpy_async_gpu_to_gpu(d_dest, d_src,
-                                   elements_per_input * sizeof(Torus),
-                                   streams[i], gpu_indexes[i]);
+    } else {
+      auto src_indexes = h_src_indexes + gpu_offset;
+
+      // TODO Check if we can increase parallelization by adding another omp
+      // clause here
+      for (uint j = 0; j < inputs_on_gpu; j++) {
+        auto d_dest = dest[i] + j * elements_per_input;
+        auto d_src = src + src_indexes[j] * elements_per_input;
+
+        cuda_memcpy_async_gpu_to_gpu(d_dest, d_src,
+                                     elements_per_input * sizeof(Torus),
+                                     streams[i], gpu_indexes[i]);
+      }
     }
   }
 
@@ -116,8 +127,8 @@ template <typename Torus>
 void multi_gpu_lwe_gather(cudaStream_t *streams, uint32_t *gpu_indexes,
                           uint32_t gpu_count, Torus *dest,
                           const std::vector<Torus *> &src,
-                          Torus *h_dest_indexes, uint32_t num_inputs,
-                          uint32_t elements_per_input,
+                          Torus *h_dest_indexes, bool is_trivial_index,
+                          uint32_t num_inputs, uint32_t elements_per_input,
                           bool sync_threads = true) {
 
   auto active_gpu_count = get_active_gpu_count(num_inputs, gpu_count);
@@ -132,92 +143,28 @@ void multi_gpu_lwe_gather(cudaStream_t *streams, uint32_t *gpu_indexes,
     for (uint j = 0; j < i; j++) {
       gpu_offset += get_num_inputs_on_gpu(num_inputs, j, active_gpu_count);
     }
-    auto dest_indexes = h_dest_indexes + gpu_offset;
 
-    // TODO Check if we can increase parallelization by adding another omp
-    // clause here
-    for (uint j = 0; j < inputs_on_gpu; j++) {
-      auto d_dest = dest + dest_indexes[j] * elements_per_input;
-      auto d_src = src[i] + j * elements_per_input;
+    if (is_trivial_index) {
+      auto d_dest = dest + gpu_offset * elements_per_input;
+      auto d_src = src[i];
 
-      cuda_memcpy_async_gpu_to_gpu(d_dest, d_src,
-                                   elements_per_input * sizeof(Torus),
-                                   streams[i], gpu_indexes[i]);
+      cuda_memcpy_async_gpu_to_gpu(
+          d_dest, d_src, inputs_on_gpu * elements_per_input * sizeof(Torus),
+          streams[i], gpu_indexes[i]);
+    } else {
+      auto dest_indexes = h_dest_indexes + gpu_offset;
+
+      // TODO Check if we can increase parallelization by adding another omp
+      // clause here
+      for (uint j = 0; j < inputs_on_gpu; j++) {
+        auto d_dest = dest + dest_indexes[j] * elements_per_input;
+        auto d_src = src[i] + j * elements_per_input;
+
+        cuda_memcpy_async_gpu_to_gpu(d_dest, d_src,
+                                     elements_per_input * sizeof(Torus),
+                                     streams[i], gpu_indexes[i]);
+      }
     }
-  }
-
-  if (sync_threads)
-    for (uint i = 0; i < active_gpu_count; i++)
-      cuda_synchronize_stream(streams[i], gpu_indexes[i]);
-}
-/// Load an array residing on one GPU to all active gpus
-/// and split the array among them.
-/// The input and output indexing is always the trivial one
-template <typename Torus>
-void multi_gpu_lwe_trivial_scatter(cudaStream_t *streams, uint32_t *gpu_indexes,
-                                   uint32_t gpu_count,
-                                   std::vector<Torus *> &dest, Torus *src,
-                                   uint32_t num_inputs,
-                                   uint32_t elements_per_input,
-                                   bool sync_threads = true) {
-
-  auto active_gpu_count = get_active_gpu_count(num_inputs, gpu_count);
-
-  if (sync_threads)
-    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
-
-  dest.resize(active_gpu_count);
-
-#pragma omp parallel for num_threads(active_gpu_count)
-  for (uint i = 0; i < active_gpu_count; i++) {
-    auto inputs_on_gpu = get_num_inputs_on_gpu(num_inputs, i, active_gpu_count);
-    auto gpu_offset = 0;
-    for (uint j = 0; j < i; j++) {
-      gpu_offset += get_num_inputs_on_gpu(num_inputs, j, active_gpu_count);
-    }
-
-    auto d_dest = dest[i];
-    auto d_src = src + gpu_offset * elements_per_input;
-    cuda_memcpy_async_gpu_to_gpu(
-        d_dest, d_src, inputs_on_gpu * elements_per_input * sizeof(Torus),
-        streams[i], gpu_indexes[i]);
-  }
-
-  if (sync_threads)
-    for (uint i = 0; i < active_gpu_count; i++)
-      cuda_synchronize_stream(streams[i], gpu_indexes[i]);
-}
-
-/// Copy data from multiple GPUs back to GPU 0 following the indexing given in
-/// dest_indexes
-/// The input indexing should be the trivial one
-template <typename Torus>
-void multi_gpu_lwe_trivial_gather(cudaStream_t *streams, uint32_t *gpu_indexes,
-                                  uint32_t gpu_count, Torus *dest,
-                                  const std::vector<Torus *> &src,
-                                  uint32_t num_inputs,
-                                  uint32_t elements_per_input,
-                                  bool sync_threads = true) {
-
-  auto active_gpu_count = get_active_gpu_count(num_inputs, gpu_count);
-
-  if (sync_threads)
-    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
-
-#pragma omp parallel for num_threads(active_gpu_count)
-  for (uint i = 0; i < active_gpu_count; i++) {
-    auto inputs_on_gpu = get_num_inputs_on_gpu(num_inputs, i, active_gpu_count);
-    auto gpu_offset = 0;
-    for (uint j = 0; j < i; j++) {
-      gpu_offset += get_num_inputs_on_gpu(num_inputs, j, active_gpu_count);
-    }
-
-    auto d_dest = dest + gpu_offset * elements_per_input;
-    auto d_src = src[i];
-
-    cuda_memcpy_async_gpu_to_gpu(
-        d_dest, d_src, inputs_on_gpu * elements_per_input * sizeof(Torus),
-        streams[i], gpu_indexes[i]);
   }
 
   if (sync_threads)

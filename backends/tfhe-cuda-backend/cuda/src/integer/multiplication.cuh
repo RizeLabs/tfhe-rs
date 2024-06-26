@@ -316,12 +316,10 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
 
     auto lwe_indexes_in = luts_message_carry->lwe_indexes_in;
     auto lwe_indexes_out = luts_message_carry->lwe_indexes_out;
+    luts_message_carry->set_lwe_indexes(streams[0], gpu_indexes[0],
+                                        h_lwe_idx_in, h_lwe_idx_out);
 
     size_t copy_size = total_count * sizeof(Torus);
-    cuda_memcpy_async_to_gpu(lwe_indexes_in, h_lwe_idx_in, copy_size,
-                             streams[0], gpu_indexes[0]);
-    cuda_memcpy_async_to_gpu(lwe_indexes_out, h_lwe_idx_out, copy_size,
-                             streams[0], gpu_indexes[0]);
     copy_size = sm_copy_count * sizeof(int32_t);
     cuda_memcpy_async_to_gpu(d_smart_copy_in, h_smart_copy_in, copy_size,
                              streams[0], gpu_indexes[0]);
@@ -363,7 +361,7 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
                                lwe_indexes_in, new_blocks, lwe_indexes_in, ksks,
                                polynomial_size * glwe_dimension, lwe_dimension,
                                mem_ptr->params.ks_base_log,
-                               mem_ptr->params.ks_level, message_count, true);
+                               mem_ptr->params.ks_level, message_count, false);
 
       /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
       /// dimension to a big LWE dimension
@@ -374,21 +372,15 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
           glwe_dimension, lwe_dimension, polynomial_size,
           mem_ptr->params.pbs_base_log, mem_ptr->params.pbs_level,
           mem_ptr->params.grouping_factor, total_count, 2, 0, max_shared_memory,
-          mem_ptr->params.pbs_type, true);
+          mem_ptr->params.pbs_type, false);
     } else {
-      auto h_lwe_indexes_in = luts_message_carry->h_lwe_indexes_in;
-      auto h_lwe_indexes_out = luts_message_carry->h_lwe_indexes_out;
-      cuda_memcpy_async_to_cpu(h_lwe_indexes_in, lwe_indexes_in,
-                               total_count * sizeof(Torus), streams[0],
-                               gpu_indexes[0]);
-      cuda_memcpy_async_to_cpu(h_lwe_indexes_out, lwe_indexes_out,
-                               total_count * sizeof(Torus), streams[0],
-                               gpu_indexes[0]);
       cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 
-      multi_gpu_lwe_scatter<Torus>(streams, gpu_indexes, gpu_count,
-                                   new_blocks_vec, new_blocks, h_lwe_indexes_in,
-                                   message_count, big_lwe_size, false);
+      multi_gpu_lwe_scatter<Torus>(
+          streams, gpu_indexes, gpu_count, new_blocks_vec, new_blocks,
+          luts_message_carry->h_lwe_indexes_in,
+          luts_message_carry->using_trivial_lwe_indexes, message_count,
+          big_lwe_size, false);
 
       /// Apply KS to go from a big LWE dimension to a small LWE dimension
       /// After this keyswitch execution, we need to synchronize the streams
@@ -404,13 +396,15 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
       /// different configuration
       multi_gpu_lwe_gather<Torus>(streams, gpu_indexes, gpu_count,
                                   small_lwe_vector, small_lwe_vector_vec,
-                                  h_lwe_indexes_in, message_count,
-                                  small_lwe_size);
+                                  luts_message_carry->h_lwe_indexes_in,
+                                  luts_message_carry->using_trivial_lwe_indexes,
+                                  message_count, small_lwe_size);
 
-      multi_gpu_lwe_scatter<Torus>(streams, gpu_indexes, gpu_count,
-                                   small_lwe_vector_vec, small_lwe_vector,
-                                   h_lwe_indexes_in, total_count,
-                                   small_lwe_size, false);
+      multi_gpu_lwe_scatter<Torus>(
+          streams, gpu_indexes, gpu_count, small_lwe_vector_vec,
+          small_lwe_vector, luts_message_carry->h_lwe_indexes_in,
+          luts_message_carry->using_trivial_lwe_indexes, total_count,
+          small_lwe_size, false);
 
       /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
       /// dimension to a big LWE dimension
@@ -425,7 +419,9 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
           mem_ptr->params.pbs_type, false);
 
       multi_gpu_lwe_gather<Torus>(streams, gpu_indexes, gpu_count, new_blocks,
-                                  lwe_after_pbs_vec, h_lwe_indexes_out,
+                                  lwe_after_pbs_vec,
+                                  luts_message_carry->h_lwe_indexes_out,
+                                  luts_message_carry->using_trivial_lwe_indexes,
                                   total_count, big_lwe_size);
     }
 
