@@ -185,7 +185,7 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
 
     /// With multiple GPUs we push to the vectors on each GPU then when we
     /// gather data to GPU 0 we can copy back to the original indexing
-    multi_gpu_lwe_scatter<Torus>(
+    multi_gpu_scatter_lwe<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array_in_vec, lwe_array_in,
         lut->h_lwe_indexes_in, lut->using_trivial_lwe_indexes, num_radix_blocks,
         big_lwe_dimension + 1, false);
@@ -208,7 +208,7 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
         cuda_get_max_shared_memory(gpu_indexes[0]), pbs_type, false);
 
     /// Copy data back to GPU 0 and release vecs
-    multi_gpu_lwe_gather<Torus>(streams, gpu_indexes, gpu_count, lwe_array_out,
+    multi_gpu_gather_lwe<Torus>(streams, gpu_indexes, gpu_count, lwe_array_out,
                                 lwe_after_pbs_vec, lut->h_lwe_indexes_out,
                                 lut->using_trivial_lwe_indexes,
                                 num_radix_blocks, big_lwe_dimension + 1, false);
@@ -273,7 +273,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
         cuda_get_max_shared_memory(gpu_indexes[0]), pbs_type, false);
   } else {
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
-    multi_gpu_lwe_scatter<Torus>(
+    multi_gpu_scatter_lwe<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array_in_vec, lwe_array_pbs_in,
         lut->h_lwe_indexes_in, lut->using_trivial_lwe_indexes, num_radix_blocks,
         big_lwe_dimension + 1, false);
@@ -296,7 +296,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
         cuda_get_max_shared_memory(gpu_indexes[0]), pbs_type, false);
 
     /// Copy data back to GPU 0 and release vecs
-    multi_gpu_lwe_gather<Torus>(streams, gpu_indexes, gpu_count, lwe_array_out,
+    multi_gpu_gather_lwe<Torus>(streams, gpu_indexes, gpu_count, lwe_array_out,
                                 lwe_after_pbs_vec, lut->h_lwe_indexes_out,
                                 lut->using_trivial_lwe_indexes,
                                 num_radix_blocks, big_lwe_dimension + 1, false);

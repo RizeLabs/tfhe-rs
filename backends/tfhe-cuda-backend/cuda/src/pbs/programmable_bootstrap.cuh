@@ -144,11 +144,9 @@ void execute_pbs(
       for (uint i = 0; i < active_gpu_count; i++) {
         int num_inputs_on_gpu =
             get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
+
         int gpu_offset =
             get_gpu_offset(input_lwe_ciphertext_count, i, gpu_count);
-        int gpu_data_offset =
-            SEL(gpu_offset, 0,
-                std::holds_alternative<std::vector<Torus *>>(lwe_array_in));
         auto d_lut_vector_indexes =
             lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
 
@@ -168,7 +166,7 @@ void execute_pbs(
             current_lwe_array_in, current_lwe_input_indexes,
             bootstrapping_keys[i], pbs_buffer[i], lwe_dimension, glwe_dimension,
             polynomial_size, base_log, level_count, num_inputs_on_gpu, num_luts,
-            lwe_idx, max_shared_memory, gpu_data_offset);
+            lwe_idx, max_shared_memory);
       }
       break;
     default:
@@ -186,13 +184,6 @@ void execute_pbs(
       for (uint i = 0; i < active_gpu_count; i++) {
         int num_inputs_on_gpu =
             get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
-        int gpu_offset =
-            get_gpu_offset(input_lwe_ciphertext_count, i, gpu_count);
-        int gpu_data_offset =
-            SEL(gpu_offset, 0,
-                std::holds_alternative<std::vector<Torus *>>(lwe_array_in));
-        auto d_lut_vector_indexes =
-            lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
 
         // Use the macro to get the correct elements for the current iteration
         // Handles the case when the input/output are scattered through
@@ -203,6 +194,11 @@ void execute_pbs(
         Torus *current_lwe_array_in = GET_VARIANT_ELEMENT(lwe_array_in, i);
         Torus *current_lwe_input_indexes =
             GET_VARIANT_ELEMENT(lwe_input_indexes, i);
+
+        int gpu_offset =
+            get_gpu_offset(input_lwe_ciphertext_count, i, gpu_count);
+        auto d_lut_vector_indexes =
+            lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
 
         cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
             streams[i], gpu_indexes[i], current_lwe_array_out,
@@ -210,8 +206,7 @@ void execute_pbs(
             current_lwe_array_in, current_lwe_input_indexes,
             bootstrapping_keys[i], pbs_buffer[i], lwe_dimension, glwe_dimension,
             polynomial_size, grouping_factor, base_log, level_count,
-            num_inputs_on_gpu, num_luts, lwe_idx, max_shared_memory,
-            gpu_data_offset);
+            num_inputs_on_gpu, num_luts, lwe_idx, max_shared_memory);
       }
       break;
     case CLASSICAL:
@@ -219,13 +214,6 @@ void execute_pbs(
       for (uint i = 0; i < active_gpu_count; i++) {
         int num_inputs_on_gpu =
             get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
-        int gpu_offset =
-            get_gpu_offset(input_lwe_ciphertext_count, i, gpu_count);
-        int gpu_data_offset =
-            SEL(gpu_offset, 0,
-                std::holds_alternative<std::vector<Torus *>>(lwe_array_in));
-        auto d_lut_vector_indexes =
-            lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
 
         // Use the macro to get the correct elements for the current iteration
         // Handles the case when the input/output are scattered through
@@ -237,13 +225,18 @@ void execute_pbs(
         Torus *current_lwe_input_indexes =
             GET_VARIANT_ELEMENT(lwe_input_indexes, i);
 
+        int gpu_offset =
+            get_gpu_offset(input_lwe_ciphertext_count, i, gpu_count);
+        auto d_lut_vector_indexes =
+            lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
+
         cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
             streams[i], gpu_indexes[i], current_lwe_array_out,
             current_lwe_output_indexes, lut_vec[i], d_lut_vector_indexes,
             current_lwe_array_in, current_lwe_input_indexes,
             bootstrapping_keys[i], pbs_buffer[i], lwe_dimension, glwe_dimension,
             polynomial_size, base_log, level_count, num_inputs_on_gpu, num_luts,
-            lwe_idx, max_shared_memory, gpu_data_offset);
+            lwe_idx, max_shared_memory);
       }
       break;
     default:

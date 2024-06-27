@@ -583,18 +583,37 @@ template <typename Torus> struct int_radix_lut {
       /// With multiple GPUs we allocate arrays to be pushed to the vectors and
       /// copy data on each GPU then when we gather data to GPU 0 we can copy
       /// back to the original indexing
-      multi_gpu_lwe_init(streams, gpu_indexes, gpu_count, lwe_array_in_vec,
-                         num_radix_blocks, params.big_lwe_dimension + 1);
-      multi_gpu_lwe_init(streams, gpu_indexes, gpu_count, lwe_after_ks_vec,
-                         num_radix_blocks, params.small_lwe_dimension + 1);
-      multi_gpu_lwe_init(streams, gpu_indexes, gpu_count, lwe_after_pbs_vec,
-                         num_radix_blocks, params.big_lwe_dimension + 1);
-
-      multi_gpu_init_array(streams, gpu_indexes, gpu_count,
-                           lwe_trivial_indexes_vec, num_radix_blocks);
-      multi_gpu_copy_array(streams, gpu_indexes, gpu_count,
-                           lwe_trivial_indexes_vec, lwe_trivial_indexes,
-                           num_radix_blocks);
+#pragma omp parallel sections
+      {
+#pragma omp section
+        {
+          multi_gpu_alloc_lwe(streams, gpu_indexes, gpu_count, lwe_array_in_vec,
+                              num_radix_blocks, params.big_lwe_dimension + 1,
+                              false);
+        }
+#pragma omp section
+        {
+          multi_gpu_alloc_lwe(streams, gpu_indexes, gpu_count, lwe_after_ks_vec,
+                              num_radix_blocks, params.small_lwe_dimension + 1,
+                              false);
+        }
+#pragma omp section
+        {
+          multi_gpu_alloc_lwe(streams, gpu_indexes, gpu_count,
+                              lwe_after_pbs_vec, num_radix_blocks,
+                              params.big_lwe_dimension + 1, false);
+        }
+#pragma omp section
+        {
+          multi_gpu_alloc_array(streams, gpu_indexes, gpu_count,
+                                lwe_trivial_indexes_vec, num_radix_blocks,
+                                false);
+          cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+          multi_gpu_copy_array(streams, gpu_indexes, gpu_count,
+                               lwe_trivial_indexes_vec, lwe_trivial_indexes,
+                               num_radix_blocks, false);
+        }
+      }
 
       // Keyswitch
       Torus big_size =
@@ -778,10 +797,10 @@ template <typename Torus> struct int_radix_lut {
       }
       buffer.clear();
 
-      multi_gpu_lwe_release(streams, gpu_indexes, lwe_array_in_vec);
-      multi_gpu_lwe_release(streams, gpu_indexes, lwe_after_ks_vec);
-      multi_gpu_lwe_release(streams, gpu_indexes, lwe_after_pbs_vec);
-      multi_gpu_lwe_release(streams, gpu_indexes, lwe_trivial_indexes_vec);
+      multi_gpu_release_lwe(streams, gpu_indexes, lwe_array_in_vec, false);
+      multi_gpu_release_lwe(streams, gpu_indexes, lwe_after_ks_vec, false);
+      multi_gpu_release_lwe(streams, gpu_indexes, lwe_after_pbs_vec, false);
+      multi_gpu_release_lwe(streams, gpu_indexes, lwe_trivial_indexes_vec);
     }
   }
 };

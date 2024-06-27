@@ -376,7 +376,7 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
     } else {
       cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 
-      multi_gpu_lwe_scatter<Torus>(
+      multi_gpu_scatter_lwe<Torus>(
           streams, gpu_indexes, gpu_count, new_blocks_vec, new_blocks,
           luts_message_carry->h_lwe_indexes_in,
           luts_message_carry->using_trivial_lwe_indexes, message_count,
@@ -394,13 +394,13 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
 
       /// Copy data back to GPU 0, rebuild the lwe array, and scatter again on a
       /// different configuration
-      multi_gpu_lwe_gather<Torus>(streams, gpu_indexes, gpu_count,
+      multi_gpu_gather_lwe<Torus>(streams, gpu_indexes, gpu_count,
                                   small_lwe_vector, small_lwe_vector_vec,
                                   luts_message_carry->h_lwe_indexes_in,
                                   luts_message_carry->using_trivial_lwe_indexes,
                                   message_count, small_lwe_size);
 
-      multi_gpu_lwe_scatter<Torus>(
+      multi_gpu_scatter_lwe<Torus>(
           streams, gpu_indexes, gpu_count, small_lwe_vector_vec,
           small_lwe_vector, luts_message_carry->h_lwe_indexes_in,
           luts_message_carry->using_trivial_lwe_indexes, total_count,
@@ -418,7 +418,7 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
           mem_ptr->params.grouping_factor, total_count, 2, 0, max_shared_memory,
           mem_ptr->params.pbs_type, false);
 
-      multi_gpu_lwe_gather<Torus>(streams, gpu_indexes, gpu_count, new_blocks,
+      multi_gpu_gather_lwe<Torus>(streams, gpu_indexes, gpu_count, new_blocks,
                                   lwe_after_pbs_vec,
                                   luts_message_carry->h_lwe_indexes_out,
                                   luts_message_carry->using_trivial_lwe_indexes,
