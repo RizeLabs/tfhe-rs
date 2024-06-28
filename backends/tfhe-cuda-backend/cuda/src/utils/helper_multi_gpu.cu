@@ -21,18 +21,8 @@ int cuda_setup_multi_gpu() {
         check_cuda_error(
             cudaDeviceCanAccessPeer(&has_peer_access_to_device_0, i, 0));
         if (has_peer_access_to_device_0) {
-          cudaMemPool_t mempool;
-          cudaMemAccessDesc desc = {};
-          // Enable P2P Access and mempool access
           check_cuda_error(cudaSetDevice(i));
           check_cuda_error(cudaDeviceEnablePeerAccess(0, 0));
-
-          check_cuda_error(cudaDeviceGetDefaultMemPool(&mempool, 0));
-          desc.location.type = cudaMemLocationTypeDevice;
-          desc.location.id = i;
-          desc.flags = cudaMemAccessFlagsProtReadWrite;
-          check_cuda_error(
-              cudaMemPoolSetAccess(mempool, &desc, 1 /* numDescs */));
           num_used_gpus += 1;
         } else {
           break;
