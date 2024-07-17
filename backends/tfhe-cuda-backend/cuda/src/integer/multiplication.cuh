@@ -230,8 +230,8 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
   auto big_lwe_size = big_lwe_dimension + 1;
   auto glwe_dimension = mem_ptr->params.glwe_dimension;
   auto polynomial_size = mem_ptr->params.polynomial_size;
-  auto lwe_dimension = mem_ptr->params.small_lwe_dimension;
-  auto small_lwe_size = lwe_dimension + 1;
+  auto small_lwe_dimension = mem_ptr->params.small_lwe_dimension;
+  auto small_lwe_size = small_lwe_dimension + 1;
 
   if (old_blocks != terms) {
     cuda_memcpy_async_gpu_to_gpu(old_blocks, terms,
@@ -359,8 +359,8 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
       /// inputs
       execute_keyswitch<Torus>(streams, gpu_indexes, 1, small_lwe_vector,
                                lwe_indexes_in, new_blocks, lwe_indexes_in, ksks,
-                               polynomial_size * glwe_dimension, lwe_dimension,
-                               mem_ptr->params.ks_base_log,
+                               polynomial_size * glwe_dimension,
+                               small_lwe_dimension, mem_ptr->params.ks_base_log,
                                mem_ptr->params.ks_level, message_count, false);
 
       /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
@@ -369,7 +369,7 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
           streams, gpu_indexes, 1, new_blocks, lwe_indexes_out,
           luts_message_carry->lut_vec, luts_message_carry->lut_indexes_vec,
           small_lwe_vector, lwe_indexes_in, bsks, luts_message_carry->buffer,
-          glwe_dimension, lwe_dimension, polynomial_size,
+          glwe_dimension, small_lwe_dimension, polynomial_size,
           mem_ptr->params.pbs_base_log, mem_ptr->params.pbs_level,
           mem_ptr->params.grouping_factor, total_count, 2, 0, max_shared_memory,
           mem_ptr->params.pbs_type, false);
@@ -386,11 +386,12 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
       /// After this keyswitch execution, we need to synchronize the streams
       /// because the keyswitch and PBS do not operate on the same number of
       /// inputs
-      execute_keyswitch<Torus>(
-          streams, gpu_indexes, gpu_count, small_lwe_vector_vec,
-          lwe_trivial_indexes_vec, new_blocks_vec, lwe_trivial_indexes_vec,
-          ksks, big_lwe_dimension, lwe_dimension, mem_ptr->params.ks_base_log,
-          mem_ptr->params.ks_level, message_count, false);
+      execute_keyswitch<Torus>(streams, gpu_indexes, gpu_count,
+                               small_lwe_vector_vec, lwe_trivial_indexes_vec,
+                               new_blocks_vec, lwe_trivial_indexes_vec, ksks,
+                               big_lwe_dimension, small_lwe_dimension,
+                               mem_ptr->params.ks_base_log,
+                               mem_ptr->params.ks_level, message_count, false);
 
       /// Copy data back to GPU 0, rebuild the lwe array, and scatter again on a
       /// different configuration
@@ -413,7 +414,7 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
           lwe_trivial_indexes_vec, luts_message_carry->lut_vec,
           luts_message_carry->lut_indexes_vec, small_lwe_vector_vec,
           lwe_trivial_indexes_vec, bsks, luts_message_carry->buffer,
-          glwe_dimension, lwe_dimension, polynomial_size,
+          glwe_dimension, small_lwe_dimension, polynomial_size,
           mem_ptr->params.pbs_base_log, mem_ptr->params.pbs_level,
           mem_ptr->params.grouping_factor, total_count, 2, 0, max_shared_memory,
           mem_ptr->params.pbs_type, false);

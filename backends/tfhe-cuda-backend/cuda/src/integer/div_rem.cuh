@@ -31,17 +31,13 @@ template <typename Torus> struct lwe_ciphertext_list {
   int_radix_params params;
 
   size_t big_lwe_size;
-  size_t radix_size;
   size_t big_lwe_size_bytes;
-  size_t radix_size_bytes;
   size_t big_lwe_dimension;
 
   lwe_ciphertext_list(Torus *src, int_radix_params params, size_t max_blocks)
       : data(src), params(params), max_blocks(max_blocks) {
     big_lwe_size = params.big_lwe_dimension + 1;
     big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
-    radix_size = max_blocks * big_lwe_size;
-    radix_size_bytes = radix_size * sizeof(Torus);
     big_lwe_dimension = params.big_lwe_dimension;
     len = max_blocks;
   }
