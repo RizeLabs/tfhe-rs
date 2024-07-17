@@ -342,6 +342,33 @@ extern "C" {
         num_samples: u32,
     );
 
+    pub fn cuda_fp_keyswitch_lwe_to_glwe_64(
+        stream: *mut c_void,
+        gpu_index: u32,
+        glwe_array_out: *mut c_void,
+        lwe_array_in: *const c_void,
+        fp_ksk_array: *const c_void,
+        input_lwe_dimension: u32,
+        output_glwe_dimension: u32,
+        polynomial_size: u32,
+        base_log: u32,
+        level_count: u32,
+    );
+
+    pub fn cuda_fp_keyswitch_lwe_list_to_glwe_64(
+        stream: *mut c_void,
+        gpu_index: u32,
+        glwe_array_out: *mut c_void,
+        lwe_array_in: *const c_void,
+        fp_ksk_array: *const c_void,
+        input_lwe_dimension: u32,
+        output_glwe_dimension: u32,
+        polynomial_size: u32,
+        base_log: u32,
+        level_count: u32,
+        num_lwes: u32,
+    );
+
     /// Perform the negation of a u64 input LWE ciphertext vector.
     /// - `v_stream` is a void pointer to the Cuda stream to be used in the kernel launch
     /// - `gpu_index` is the index of the GPU to be used in the kernel launch
@@ -516,6 +543,69 @@ extern "C" {
         mem_ptr: *mut *mut i8,
     );
 
+    pub fn scratch_cuda_compression_integer_radix_ciphertext_64(
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_lwes: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: u32,
+        lwe_per_glwe: u32,
+        storage_log_modulus: u32,
+        mode: u32,
+        allocate_gpu_memory: bool,
+    );
+
+    pub fn cuda_compression_compress_integer_radix_ciphertext_64(
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        glwe_array_out: *mut c_void,
+        lwe_array_in: *const c_void,
+        fp_ksk: *const *mut c_void,
+        num_lwes: u32,
+        mem_ptr: *mut i8,
+    );
+
+    pub fn cuda_compression_decompress_integer_radix_ciphertext_64(
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        lwe_out: *mut c_void,
+        glwe_array_in: *const c_void,
+        bsks: *const *mut c_void,
+        mem_ptr: *mut i8,
+    );
+
+    pub fn cleanup_cuda_compression_integer_radix_ciphertext_64(
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+    );
+
+    pub fn cuda_glwe_sample_extract_64(
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        lwe_array_out: *mut c_void,
+        glwe_in: *const c_void,
+        nth_array: *const u32,
+        num_samples: u32,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+    );
+
     pub fn cuda_scalar_addition_integer_radix_ciphertext_64_inplace(
         streams: *const *mut c_void,
         gpu_indexes: *const u32,
@@ -627,17 +717,6 @@ extern "C" {
         gpu_indexes: *const u32,
         gpu_count: u32,
         mem_ptr: *mut *mut i8,
-    );
-    pub fn cuda_glwe_sample_extract_64(
-        streams: *const *mut c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
-        lwe_array_out: *mut c_void,
-        glwe_in: *const c_void,
-        nth_array: *const u32,
-        num_samples: u32,
-        glwe_dimension: u32,
-        polynomial_size: u32,
     );
 
     pub fn scratch_cuda_integer_radix_comparison_kb_64(

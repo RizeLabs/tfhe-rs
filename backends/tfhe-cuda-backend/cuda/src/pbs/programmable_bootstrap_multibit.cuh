@@ -28,7 +28,7 @@ __device__ Torus calculates_monomial_degree(const Torus *lwe_array_group,
     x += selection_bit * lwe_array_group[i];
   }
 
-  return modulus_switch(x, params::log2_degree + 1);
+  return apply_modulus_switch(x, params::log2_degree + 1);
 }
 
 template <typename Torus, class params, sharedMemDegree SMD>
@@ -102,7 +102,7 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
 
       synchronize_threads_in_block();
       // Multiply by the bsk element
-      polynomial_product_accumulate_by_monomial<Torus, params>(
+      polynomial_accumulate_monic_monomial_mul<Torus, params>(
           accumulator, bsk_poly, monomial_degree, false);
     }
 
@@ -203,8 +203,8 @@ __global__ void device_multi_bit_programmable_bootstrap_accumulate_step_one(
     // Initializes the accumulator with the body of LWE
     // Put "b" in [0, 2N[
     Torus b_hat = 0;
-    modulus_switch(block_lwe_array_in[lwe_dimension], b_hat,
-                   params::log2_degree + 1);
+    apply_modulus_switch(block_lwe_array_in[lwe_dimension], b_hat,
+                         params::log2_degree + 1);
 
     divide_by_monomial_negacyclic_inplace<Torus, params::opt,
                                           params::degree / params::opt>(

@@ -3,6 +3,7 @@
 
 #include "device.h"
 #include "types/int128.cuh"
+#include "utils/kernel_dimensions.cuh"
 #include <limits>
 
 template <typename T>
@@ -40,8 +41,8 @@ __device__ inline T round_to_closest_multiple(T x, uint32_t base_log,
 }
 
 template <typename T>
-__device__ __forceinline__ void modulus_switch(T input, T &output,
-                                               uint32_t log_modulus) {
+__device__ __forceinline__ void apply_modulus_switch(T input, T &output,
+                                                     uint32_t log_modulus) {
   constexpr uint32_t BITS = sizeof(T) * 8;
 
   output = input + (((T)1) << (BITS - log_modulus - 1));
@@ -49,10 +50,32 @@ __device__ __forceinline__ void modulus_switch(T input, T &output,
 }
 
 template <typename T>
-__device__ __forceinline__ T modulus_switch(T input, uint32_t log_modulus) {
+__device__ __forceinline__ T apply_modulus_switch(T input,
+                                                  uint32_t log_modulus) {
   T output;
-  modulus_switch(input, output, log_modulus);
+  apply_modulus_switch(input, output, log_modulus);
   return output;
+}
+
+template <typename Torus>
+__global__ void apply_modulus_switch_inplace(Torus *array, int size,
+                                             uint32_t log_modulus) {
+  const int tid = threadIdx.x + blockIdx.x * blockDim.x;
+  if (tid < size) {
+    array[tid] = apply_modulus_switch(array[tid], log_modulus);
+  }
+}
+
+template <typename Torus>
+__host__ void modulus_switch(cudaStream_t stream, uint32_t gpu_index,
+                             Torus *array, int size, uint32_t log_modulus) {
+
+  int num_threads = 0, num_blocks = 0;
+  getNumBlocksAndThreads(size, 1024, num_blocks, num_threads);
+
+  apply_modulus_switch_inplace<<<num_blocks, num_threads, 0, stream>>>(
+      array, size, log_modulus);
+  check_cuda_error(cudaGetLastError());
 }
 
 #endif // CNCRT_TORUS_H

@@ -1,10 +1,16 @@
 //! Definition of the client key for radix decomposition
 
 use super::{ClientKey, RecomposableSignedInteger, SecretEncryptionKeyView};
+#[cfg(feature = "gpu")]
+use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 use crate::integer::backward_compatibility::client_key::RadixClientKeyVersions;
 use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
 use crate::integer::ciphertext::{RadixCiphertext, SignedRadixCiphertext};
+#[cfg(feature = "gpu")]
+use crate::integer::gpu::list_compression::server_keys::{
+    CudaCompressionKey, CudaDecompressionKey,
+};
 use crate::integer::BooleanBlock;
 use crate::shortint::{Ciphertext as ShortintCiphertext, PBSParameters as ShortintParameters};
 use serde::{Deserialize, Serialize};
@@ -130,6 +136,32 @@ impl RadixClientKey {
 
     pub fn num_blocks(&self) -> usize {
         self.num_blocks
+    }
+
+    pub fn new_compression_private_key(
+        &self,
+        params: CompressionParameters,
+    ) -> CompressionPrivateKeys {
+        self.key.key.new_compression_private_key(params)
+    }
+
+    pub fn new_compression_decompression_keys(
+        &self,
+        private_compression_key: &CompressionPrivateKeys,
+    ) -> (CompressionKey, DecompressionKey) {
+        self.key
+            .key
+            .new_compression_decompression_keys(private_compression_key)
+    }
+    #[cfg(feature = "gpu")]
+    pub fn new_cuda_compression_decompression_keys(
+        &self,
+        private_compression_key: &CompressionPrivateKeys,
+        streams: &CudaStreams,
+    ) -> (CudaCompressionKey, CudaDecompressionKey) {
+        self.key
+            .key
+            .new_cuda_compression_decompression_keys(private_compression_key, streams)
     }
 }
 

@@ -36,6 +36,11 @@ enum COMPARISON_TYPE {
   MIN = 7,
 };
 
+enum COMPRESSION_MODE {
+  COMPRESS = 0,
+  DECOMPRESS = 1,
+};
+
 enum CMP_ORDERING { IS_INFERIOR = 0, IS_EQUAL = 1, IS_SUPERIOR = 2 };
 
 enum SIGNED_OPERATION { ADDITION = 1, SUBTRACTION = -1 };
@@ -202,6 +207,29 @@ void cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
 
 void cleanup_cuda_integer_comparison(void **streams, uint32_t *gpu_indexes,
                                      uint32_t gpu_count, int8_t **mem_ptr_void);
+
+void scratch_cuda_compression_integer_radix_ciphertext_64(
+    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t lwe_dimension,
+    uint32_t ks_level, uint32_t ks_base_log, uint32_t pbs_level,
+    uint32_t pbs_base_log, uint32_t grouping_factor, uint32_t num_lwes,
+    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
+    uint32_t lwe_per_glwe, uint32_t storage_log_modulus, COMPRESSION_MODE mode,
+    bool allocate_gpu_memory);
+
+void cuda_compression_compress_integer_radix_ciphertext_64(
+    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    void *glwe_array_out, void *lwe_array_in, void **fp_ksk, uint32_t num_lwes,
+    int8_t *mem_ptr);
+
+void cuda_compression_decompress_integer_radix_ciphertext_64(
+    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    void *glwe_array_out, void *lwe_array_in, void **fp_ksk, uint32_t num_lwes,
+    int8_t *mem_ptr);
+
+void cleanup_cuda_compression_integer_radix_ciphertext_64(
+    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    int8_t **mem_ptr_void);
 
 void scratch_cuda_integer_radix_bitop_kb_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
@@ -792,6 +820,37 @@ template <typename Torus> struct int_radix_lut {
   }
 };
 
+template <typename Torus> struct int_compression {
+  COMPRESSION_MODE mode;
+  int_radix_params params;
+  uint32_t storage_log_modulus;
+  uint32_t lwe_per_glwe;
+
+  Torus *tmp_lwe_shifted;
+
+  int_compression(cudaStream_t *streams, uint32_t *gpu_indexes,
+                  uint32_t gpu_count, int_radix_params params,
+                  uint32_t num_radix_blocks, uint32_t lwe_per_glwe,
+                  uint32_t storage_log_modulus, COMPRESSION_MODE mode,
+                  bool allocate_gpu_memory) {
+    this->mode = mode;
+    this->params = params;
+    this->lwe_per_glwe = lwe_per_glwe;
+    this->storage_log_modulus = storage_log_modulus;
+
+    if (allocate_gpu_memory) {
+      int glwe_accumulator_size =
+          (params.glwe_dimension + 1) * params.polynomial_size;
+      tmp_lwe_shifted = (Torus *)cuda_malloc_async(
+          num_radix_blocks * (params.big_lwe_dimension + 1), streams[0],
+          gpu_indexes[0]);
+    }
+  }
+  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+               uint32_t gpu_count) {
+    cuda_drop_async(tmp_lwe_shifted, streams[0], gpu_indexes[0]);
+  }
+};
 template <typename Torus> struct int_bit_extract_luts_buffer {
   int_radix_params params;
   int_radix_lut<Torus> *lut;

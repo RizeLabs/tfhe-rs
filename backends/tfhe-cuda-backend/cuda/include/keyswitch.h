@@ -16,6 +16,20 @@ void cuda_keyswitch_lwe_ciphertext_vector_64(
     void *lwe_output_indexes, void *lwe_array_in, void *lwe_input_indexes,
     void *ksk, uint32_t lwe_dimension_in, uint32_t lwe_dimension_out,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples);
+
+void cuda_fp_keyswitch_lwe_to_glwe_64(void *v_stream, uint32_t gpu_index,
+                                      void *glwe_array_out, void *lwe_array_in,
+                                      void *fp_ksk_array,
+                                      uint32_t input_lwe_dimension,
+                                      uint32_t output_glwe_dimension,
+                                      uint32_t output_polynomial_size,
+                                      uint32_t base_log, uint32_t level_count);
+
+void cuda_fp_keyswitch_lwe_list_to_glwe_64(
+    void *stream, uint32_t gpu_index, void *glwe_array_out, void *lwe_array_in,
+    void *fp_ksk_array, uint32_t input_lwe_dimension,
+    uint32_t output_glwe_dimension, uint32_t output_polynomial_size,
+    uint32_t base_log, uint32_t level_count, uint32_t num_lwes);
 }
 
 #endif // CNCRT_KS_H_

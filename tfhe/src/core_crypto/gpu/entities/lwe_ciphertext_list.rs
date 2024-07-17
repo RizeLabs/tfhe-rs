@@ -4,6 +4,7 @@ use crate::core_crypto::prelude::{
     CiphertextModulus, Container, LweCiphertext, LweCiphertextCount, LweCiphertextList,
     LweDimension, LweSize, UnsignedInteger,
 };
+use std::cmp::min;
 use tfhe_cuda_backend::cuda_bind::cuda_memcpy_async_gpu_to_gpu;
 
 /// A structure representing a vector of LWE ciphertexts with 64 bits of precision on the GPU.
@@ -229,11 +230,7 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
         let ciphertext_modulus = self.ciphertext_modulus();
 
         // Copy to the GPU
-        let mut d_vec = CudaVec::new(self.0.d_vec.len(), streams, 0);
-        unsafe {
-            d_vec.copy_from_gpu_async(&self.0.d_vec, streams, 0);
-        }
-        streams.synchronize();
+        let d_vec = unsafe { self.0.d_vec.duplicate(streams, 0) };
 
         let cuda_lwe_list = CudaLweList {
             d_vec,
@@ -242,6 +239,62 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
             ciphertext_modulus,
         };
         Self(cuda_lwe_list)
+    }
+
+    // Retrieve [start,end) lwe ciphertexts in the list
+    pub fn retrieve_subset(
+        &self,
+        start: usize,
+        end: usize,
+        streams: &CudaStreams,
+        gpu_index: u32,
+    ) -> Option<Self> {
+        if end < start {
+            None
+        } else {
+            let lwe_dimension = self.lwe_dimension();
+            let lwe_ciphertext_count =
+                LweCiphertextCount(min(end - start, self.lwe_ciphertext_count().0));
+            let ciphertext_modulus = self.ciphertext_modulus();
+
+            // Copy to the GPU
+            let d_vec = unsafe {
+                let mut d_vec = CudaVec::new_async(
+                    lwe_ciphertext_count.0 * lwe_dimension.to_lwe_size().0,
+                    streams,
+                    gpu_index,
+                );
+                // Todo: We might use copy_src_range_gpu_to_gpu_async here
+                let src_ptr = self
+                    .0
+                    .d_vec
+                    .as_c_ptr(gpu_index)
+                    .add(start * lwe_dimension.to_lwe_size().0 * std::mem::size_of::<T>());
+                let size = lwe_ciphertext_count.0
+                    * lwe_dimension.to_lwe_size().0
+                    * std::mem::size_of::<T>();
+                cuda_memcpy_async_gpu_to_gpu(
+                    d_vec.as_mut_c_ptr(gpu_index),
+                    src_ptr,
+                    size as u64,
+                    streams.ptr[gpu_index as usize],
+                    streams.gpu_indexes[gpu_index as usize],
+                );
+
+                d_vec
+            };
+
+            streams.synchronize();
+
+            let cuda_lwe_list = CudaLweList {
+                d_vec,
+                lwe_ciphertext_count,
+                lwe_dimension,
+                ciphertext_modulus,
+            };
+
+            Some(CudaLweCiphertextList { 0: cuda_lwe_list })
+        }
     }
 
     pub(crate) fn lwe_dimension(&self) -> LweDimension {
