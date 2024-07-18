@@ -349,8 +349,6 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
     std::vector<Torus *> lwe_trivial_indexes_vec =
         luts_message_carry->lwe_trivial_indexes_vec;
 
-    // TODO We should be able to run keyswitch on a single GPU and PBS on
-    // multiple GPUs if needed
     auto active_gpu_count = get_active_gpu_count(total_count, gpu_count);
     if (active_gpu_count == 1) {
       /// Apply KS to go from a big LWE dimension to a small LWE dimension
@@ -379,7 +377,7 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
       multi_gpu_scatter_lwe<Torus>(
           streams, gpu_indexes, gpu_count, new_blocks_vec, new_blocks,
           luts_message_carry->h_lwe_indexes_in,
-          luts_message_carry->using_trivial_lwe_indexes, message_count,
+          luts_message_carry->using_trivial_lwe_indexes, total_count,
           big_lwe_size, false);
 
       /// Apply KS to go from a big LWE dimension to a small LWE dimension
@@ -391,21 +389,7 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
                                new_blocks_vec, lwe_trivial_indexes_vec, ksks,
                                big_lwe_dimension, small_lwe_dimension,
                                mem_ptr->params.ks_base_log,
-                               mem_ptr->params.ks_level, message_count, false);
-
-      /// Copy data back to GPU 0, rebuild the lwe array, and scatter again on a
-      /// different configuration
-      multi_gpu_gather_lwe<Torus>(streams, gpu_indexes, gpu_count,
-                                  small_lwe_vector, small_lwe_vector_vec,
-                                  luts_message_carry->h_lwe_indexes_in,
-                                  luts_message_carry->using_trivial_lwe_indexes,
-                                  message_count, small_lwe_size);
-
-      multi_gpu_scatter_lwe<Torus>(
-          streams, gpu_indexes, gpu_count, small_lwe_vector_vec,
-          small_lwe_vector, luts_message_carry->h_lwe_indexes_in,
-          luts_message_carry->using_trivial_lwe_indexes, total_count,
-          small_lwe_size, false);
+                               mem_ptr->params.ks_level, total_count, false);
 
       /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
       /// dimension to a big LWE dimension
