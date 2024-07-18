@@ -174,8 +174,11 @@ void multi_gpu_release_lwe(cudaStream_t *streams, uint32_t *gpu_indexes,
 
   for (uint i = 0; i < vec.size(); i++) {
     cuda_drop_async(vec[i], streams[i], gpu_indexes[i]);
-    if (sync_threads)
+  }
+  if (sync_threads) {
+    for (uint i = 0; i < vec.size(); i++) {
       cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+    }
   }
   vec.clear();
 }
