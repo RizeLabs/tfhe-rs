@@ -96,7 +96,7 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
     // rotate left as the blocks are from LSB to MSB
     // create trivial assign for value = 0
     cuda_memset_async(rotated_buffer + (num_blocks - rotations) * big_lwe_size,
-                      0, rotations * big_lwe_size_bytes, streams[0],
+                      0, (rotations + 1) * big_lwe_size_bytes, streams[0],
                       gpu_indexes[0]);
     cuda_memcpy_async_gpu_to_gpu(lwe_array, rotated_buffer,
                                  num_blocks * big_lwe_size_bytes, streams[0],
