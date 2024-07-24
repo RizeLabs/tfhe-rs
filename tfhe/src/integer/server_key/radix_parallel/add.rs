@@ -599,24 +599,7 @@ impl ServerKey {
                         let lut = self.key.generate_lookup_table(|lhs_rhs| {
                             let lhs = lhs_rhs / self.message_modulus().0 as u64;
                             let rhs = lhs_rhs % self.message_modulus().0 as u64;
-                            let mask = (1 << (num_bits_in_message - 1)) - 1;
-                            let lhs_except_last_bit = lhs & mask;
-                            let rhs_except_last_bit = rhs & mask;
-
-                            let overflows_with_given_input_carry = |input_carry| {
-                                let output_carry =
-                                    ((lhs + rhs + input_carry) >> num_bits_in_message) & 1;
-
-                                let input_carry_to_last_bit =
-                                    ((lhs_except_last_bit + rhs_except_last_bit + input_carry)
-                                        >> (num_bits_in_message - 1))
-                                        & 1;
-
-                                u64::from(input_carry_to_last_bit != output_carry)
-                            };
-
-                            (overflows_with_given_input_carry(1) << 3)
-                                | (overflows_with_given_input_carry(0) << 2)
+                            overflow_flag_preparation_lut(lhs, rhs, num_bits_in_message)
                         });
                         self.key.apply_lookup_table_assign(overflow_flag, &lut);
                     });
@@ -683,10 +666,12 @@ impl ServerKey {
                         // Computing the overflow flag requires and extra step for the first block
                         let overflow_flag_lut = self.key.generate_lookup_table(|block| {
                             let input_carry = block & 1;
+                            let does_overflow_if_carry_is_1 = (block >> 3) & 1;
+                            let does_overflow_if_carry_is_0 = (block >> 2) & 1;
                             if input_carry == 1 {
-                                (block >> 3) & 1
+                                does_overflow_if_carry_is_1
                             } else {
-                                (block >> 2) & 1
+                                does_overflow_if_carry_is_0
                             }
                         });
 
@@ -864,35 +849,13 @@ impl ServerKey {
                 (shifted_blocks, block_states)
             }
             OutputFlag::Overflow => {
-                // Computing the overflow flag is a bit more complex than the carry flag,
-                // the overflow flag is computed by comparing the input carry onto the last bit
-                // with the output carry of the last bit. Since we have blocks that encrypts
-                // multiple bit, we have to compute and encode what the input carry onto the last
-                // bit is depending on the input carry onto the last block.
                 let (block, (shifted_blocks, block_states)) = rayon::join(
                     || {
                         // When used on the last block of `lhs` and `rhs`, this will create a
                         // block that encodes the 2 values needed to later know if overflow did
                         // happen depending on the input carry of the last block.
                         let lut = self.key.generate_lookup_table_bivariate(|lhs, rhs| {
-                            let mask = (1 << (num_bits_in_message - 1)) - 1;
-                            let lhs_except_last_bit = lhs & mask;
-                            let rhs_except_last_bit = rhs & mask;
-
-                            let overflows_with_given_input_carry = |input_carry| {
-                                let output_carry =
-                                    ((lhs + rhs + input_carry) >> num_bits_in_message) & 1;
-
-                                let input_carry_to_last_bit =
-                                    ((lhs_except_last_bit + rhs_except_last_bit + input_carry)
-                                        >> (num_bits_in_message - 1))
-                                        & 1;
-
-                                u64::from(input_carry_to_last_bit != output_carry)
-                            };
-
-                            (overflows_with_given_input_carry(1) << 3)
-                                | (overflows_with_given_input_carry(0) << 2)
+                            overflow_flag_preparation_lut(lhs, rhs, num_bits_in_message)
                         });
                         let (last_lhs_block, last_rhs_block) = saved_last_blocks.as_ref().unwrap();
                         self.key.unchecked_apply_lookup_table_bivariate(
@@ -1428,6 +1391,46 @@ impl ServerKey {
 
         blocks
     }
+}
+
+/// This function is meant to be used to creat the lookup table that prepares
+/// the overflow flag.
+// Computing the overflow flag is a bit more complex than the carry flag.
+//
+// The overflow flag is computed by comparing the input carry onto the last bit
+// with the output carry of the last bit.
+//
+// Since we have blocks that encrypts multiple bit,
+// we have to compute and encode what the input carry onto the last
+// bit is depending on the input carry onto the last block.
+//
+// So this function creates a lookuptable that when applied to a block
+// packing the last blocks (MSB) of 2 number, will resulting in a block
+// where:
+//
+// - at bit index 2 is stored whether overflow happens if the input bloc carry is '2'
+// - at bit index 3 is stored whether overflow happens if the input bloc carry is '1'
+fn overflow_flag_preparation_lut(
+    last_lhs_block: u64,
+    last_rhs_block: u64,
+    num_bits_in_message: u64,
+) -> u64 {
+    let mask = (1 << (num_bits_in_message - 1)) - 1;
+    let lhs_except_last_bit = last_lhs_block & mask;
+    let rhs_except_last_bit = last_rhs_block & mask;
+
+    let overflows_with_given_input_carry = |input_carry| {
+        let output_carry =
+            ((last_lhs_block + last_rhs_block + input_carry) >> num_bits_in_message) & 1;
+
+        let input_carry_to_last_bit = ((lhs_except_last_bit + rhs_except_last_bit + input_carry)
+            >> (num_bits_in_message - 1))
+            & 1;
+
+        u64::from(input_carry_to_last_bit != output_carry)
+    };
+
+    (overflows_with_given_input_carry(1) << 3) | (overflows_with_given_input_carry(0) << 2)
 }
 
 #[cfg(test)]
