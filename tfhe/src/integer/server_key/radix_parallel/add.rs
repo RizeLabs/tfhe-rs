@@ -554,6 +554,13 @@ impl ServerKey {
         //
         // The num blocks == 1 + requested_flag == OverflowFlag will actually result in one more
         // PBS of latency than num_blocks == 1 && requested_flag != OverflowFlag
+        //
+        // It happens because the computation of the overflow flag requires 2 steps,
+        // and we insert these two steps in parallel to normal carry propagation.
+        // The first step is done when processing the first block,
+        // the second step is done when processing the last block.
+        // So if the number of block is smaller than 2 then,
+        // the overflow computation adds additional layer of PBS.
         if self.key.message_modulus.0 >= 4 && self.key.carry_modulus.0 >= self.key.message_modulus.0
         {
             let mut overflow_flag = if requested_flag == OutputFlag::Overflow {
@@ -783,7 +790,11 @@ impl ServerKey {
         // `propagate_single_carry_parallelized` function which wraps this special case
         if rhs.is_empty() {
             // Techinically, CarryFlag is computable, but OverflowFlag is not
-            assert_eq!(requested_flag, OutputFlag::None);
+            assert_eq!(
+                requested_flag,
+                OutputFlag::None,
+                "Cannot compute flags when called in propagation mode"
+            );
         } else {
             assert_eq!(
                 lhs.len(),
@@ -911,7 +922,7 @@ impl ServerKey {
         };
 
         // Second step
-        let (mut prepared_blocks, mut groupings_pgns) = {
+        let (mut prepared_blocks, groupings_pgns) = {
             // This stores, the LUTs that given a cum sum block in the first grouping
             // tells if a carry is generated or not
             let first_grouping_inner_propagation_luts = (0..grouping_size - 1)
@@ -1094,72 +1105,9 @@ impl ServerKey {
         let resolved_carries = if groupings_pgns.is_empty() {
             vec![self.key.create_trivial(0)]
         } else if use_sequential_algorithm_to_resolved_grouping_carries {
-            let luts = (0..grouping_size - 1)
-                .map(|index| {
-                    self.key.generate_lookup_table(|propa_cum_sum_block| {
-                        (propa_cum_sum_block >> (index + 1)) & 1
-                    })
-                })
-                .collect::<Vec<_>>();
-
-            groupings_pgns.rotate_left(1);
-            let mut resolved_carries =
-                vec![self.key.create_trivial(0), groupings_pgns.pop().unwrap()];
-
-            for chunk in groupings_pgns.chunks(grouping_size - 1) {
-                let mut cum_sums = chunk.to_vec();
-                self.key
-                    .unchecked_add_assign(&mut cum_sums[0], resolved_carries.last().unwrap());
-
-                if chunk.len() > 1 {
-                    let mut accumulator = cum_sums[0].clone();
-                    for block in cum_sums[1..].iter_mut() {
-                        self.key.unchecked_add_assign(&mut accumulator, block);
-                        block.clone_from(&accumulator);
-                    }
-                }
-
-                cum_sums
-                    .par_iter_mut()
-                    .zip(luts.par_iter())
-                    .for_each(|(cum_sum_block, lut)| {
-                        self.key.apply_lookup_table_assign(cum_sum_block, lut);
-                    });
-
-                // Cum sums now contains the output carries
-                resolved_carries.append(&mut cum_sums);
-            }
-
-            resolved_carries
+            self.resolve_carries_of_groups_sequentially(groupings_pgns, grouping_size)
         } else {
-            let lut_carry_propagation_sum =
-                self.key
-                    .generate_lookup_table_bivariate(|msb: u64, lsb: u64| -> u64 {
-                        if msb == 2 {
-                            1 // Remap Generate to 1
-                        } else if msb == 3 {
-                            // MSB propagates
-                            if lsb == 2 {
-                                1
-                            } else {
-                                lsb
-                            } // also remap here
-                        } else {
-                            msb
-                        }
-                    });
-            let sum_function = |block_borrow: &mut Ciphertext,
-                                previous_block_borrow: &Ciphertext| {
-                self.key.unchecked_apply_lookup_table_bivariate_assign(
-                    block_borrow,
-                    previous_block_borrow,
-                    &lut_carry_propagation_sum,
-                );
-            };
-            let mut resolved_carries =
-                self.compute_prefix_sum_hillis_steele(groupings_pgns, sum_function);
-            resolved_carries.insert(0, self.key.create_trivial(0));
-            resolved_carries
+            self.resolve_carries_of_groups_using_hillis_steele(groupings_pgns)
         };
 
         // Final step: adding resolved carries and cleaning result
@@ -1188,10 +1136,12 @@ impl ServerKey {
             OutputFlag::Overflow => {
                 let overflow_flag_lut = self.key.generate_lookup_table(|block| {
                     let input_carry = (block >> 1) & 1;
+                    let does_overflow_if_carry_is_1 = (block >> 3) & 1;
+                    let does_overflow_if_carry_is_0 = (block >> 2) & 1;
                     if input_carry == 1 {
-                        (block >> 3) & 1
+                        does_overflow_if_carry_is_1
                     } else {
-                        (block >> 2) & 1
+                        does_overflow_if_carry_is_0
                     }
                 });
                 rayon::join(
@@ -1232,6 +1182,105 @@ impl ServerKey {
                 output_flag.map(BooleanBlock::new_unchecked)
             }
         }
+    }
+
+    /// This resolves the carries using a Hillis-Steele algorithm
+    ///
+    /// Blocks must have a value in
+    /// - 2 or 1 for generate
+    /// - 3 for propagate
+    /// - 0 for no carry
+    ///
+    /// The returned Vec of blocks encrypting 1 if a carry is generated, 0 if not
+    fn resolve_carries_of_groups_using_hillis_steele(
+        &self,
+        groupings_pgns: Vec<Ciphertext>,
+    ) -> Vec<Ciphertext> {
+        let lut_carry_propagation_sum =
+            self.key
+                .generate_lookup_table_bivariate(|msb: u64, lsb: u64| -> u64 {
+                    if msb == 2 {
+                        1 // Remap Generate to 1
+                    } else if msb == 3 {
+                        // MSB propagates
+                        if lsb == 2 {
+                            1
+                        } else {
+                            lsb
+                        } // also remap here
+                    } else {
+                        msb
+                    }
+                });
+        let sum_function = |block_borrow: &mut Ciphertext, previous_block_borrow: &Ciphertext| {
+            self.key.unchecked_apply_lookup_table_bivariate_assign(
+                block_borrow,
+                previous_block_borrow,
+                &lut_carry_propagation_sum,
+            );
+        };
+        let mut resolved_carries =
+            self.compute_prefix_sum_hillis_steele(groupings_pgns, sum_function);
+        resolved_carries.insert(0, self.key.create_trivial(0));
+        resolved_carries
+    }
+
+    /// This resolves the carries using a sequential algorithm
+    /// where each iteration resolves grouping_size - 1 "PGN"
+    ///
+    /// Blocks must have a value in
+    /// - 2 for generate
+    /// - 1 for propagate
+    /// - 0 for no carry
+    ///
+    /// This value must be shifted by the position in the block's group.
+    ///
+    /// The block of the first group (so groupings_pgns[0]) must have a value in
+    /// - 1 for generate
+    /// - 0 for no carry
+    ///
+    /// The returned Vec of blocks encrypting 1 if a carry is generated, 0 if not
+    fn resolve_carries_of_groups_sequentially(
+        &self,
+        mut groupings_pgns: Vec<Ciphertext>,
+        grouping_size: usize,
+    ) -> Vec<Ciphertext> {
+        let luts = (0..grouping_size - 1)
+            .map(|index| {
+                self.key.generate_lookup_table(|propa_cum_sum_block| {
+                    (propa_cum_sum_block >> (index + 1)) & 1
+                })
+            })
+            .collect::<Vec<_>>();
+
+        groupings_pgns.rotate_left(1);
+        let mut resolved_carries = vec![self.key.create_trivial(0), groupings_pgns.pop().unwrap()];
+
+        for chunk in groupings_pgns.chunks(grouping_size - 1) {
+            let mut cum_sums = chunk.to_vec();
+            self.key
+                .unchecked_add_assign(&mut cum_sums[0], resolved_carries.last().unwrap());
+
+            if chunk.len() > 1 {
+                let mut accumulator = cum_sums[0].clone();
+                for block in cum_sums[1..].iter_mut() {
+                    self.key.unchecked_add_assign(&mut accumulator, block);
+                    block.clone_from(&accumulator);
+                }
+            }
+
+            cum_sums
+                .par_iter_mut()
+                .zip(luts.par_iter())
+                .for_each(|(cum_sum_block, lut)| {
+                    self.key.apply_lookup_table_assign(cum_sum_block, lut);
+                });
+
+            // Cum sums now contains the output carries
+            resolved_carries.append(&mut cum_sums);
+        }
+
+        resolved_carries
     }
 
     fn compute_shifted_blocks_and_block_states(
