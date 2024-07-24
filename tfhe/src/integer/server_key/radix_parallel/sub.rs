@@ -226,7 +226,7 @@ impl ServerKey {
         };
 
         let neg = self.unchecked_neg(rhs);
-        self.add_assign_with_carry(lhs, &neg, None);
+        self.add_assign_with_carry_parallelized(lhs, &neg, None);
     }
 
     /// Computes the subtraction and returns an indicator of overflow
@@ -410,6 +410,14 @@ impl ServerKey {
             rhs.blocks.len()
         );
 
+        // We are using two's complement for signed numbers,
+        // we do the subtraction by adding the negation of rhs.
+        // But to be able to get the correct overflow flag, we need to
+        // comute (result, overflow) = (lhs + bitnot(rhs) + 1) instead of
+        // (result, overflow) = (lhs + (-rhs). We need the bitnot(rhs) and +1
+        // 'separated'
+        //
+        // Remainder: in two's complement -rhs = bitnot(rhs) + 1
         let flipped_rhs = self.bitnot(rhs);
         let input_carry = self.create_trivial_boolean_block(true);
         let mut result = lhs.clone();

@@ -97,7 +97,7 @@ where
 {
     let func = |sks: &ServerKey, lhs: &RadixCiphertext, rhs: &RadixCiphertext| {
         let mut result = lhs.clone();
-        sks.advanced_add_assign_with_carry_sequential(
+        sks.advanced_add_assign_with_carry_sequential_parallelized(
             &mut result.blocks,
             &rhs.blocks,
             None,

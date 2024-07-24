@@ -116,7 +116,7 @@ impl ServerKey {
             .collect::<Vec<_>>();
         let rhs = T::from_blocks(blocks);
 
-        self.add_assign_with_carry(ct, &rhs, None);
+        self.add_assign_with_carry_parallelized(ct, &rhs, None);
     }
 
     pub fn unsigned_overflowing_scalar_sub_assign_parallelized<T>(

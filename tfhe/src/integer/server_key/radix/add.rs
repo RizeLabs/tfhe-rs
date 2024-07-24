@@ -269,13 +269,13 @@ impl ServerKey {
     ) -> (SignedRadixCiphertext, BooleanBlock) {
         let mut result = lhs.clone();
         let overflowed = self
-            .advanced_add_assign_with_carry_sequential(
+            .advanced_add_assign_with_carry_sequential_parallelized(
                 &mut result.blocks,
                 &rhs.blocks,
                 None,
                 OutputFlag::from_signedness(true),
             )
-            .expect("overflow flat was reuested");
+            .expect("overflow flag was requested");
 
         (result, overflowed)
     }

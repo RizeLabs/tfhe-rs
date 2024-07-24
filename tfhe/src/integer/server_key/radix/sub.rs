@@ -428,7 +428,7 @@ impl ServerKey {
         let carry = self.create_trivial_boolean_block(true);
         let mut result = lhs.clone();
         let overflowed = self
-            .advanced_add_assign_with_carry_sequential(
+            .advanced_add_assign_with_carry_sequential_parallelized(
                 &mut result.blocks,
                 &flipped_rhs.blocks,
                 Some(&carry),

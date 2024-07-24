@@ -140,7 +140,7 @@ impl ServerKey {
                 ctxt.blocks_mut()[start_index] = message_blocks.remove(0);
                 let mut lhs = T::from(message_blocks);
                 let rhs = T::from(carry_blocks);
-                self.add_assign_with_carry(&mut lhs, &rhs, None);
+                self.add_assign_with_carry_parallelized(&mut lhs, &rhs, None);
                 ctxt.blocks_mut()[start_index + 1..].clone_from_slice(lhs.blocks());
             } else {
                 self.propagate_single_carry_parallelized(&mut ctxt.blocks_mut()[start_index..]);

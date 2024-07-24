@@ -254,7 +254,7 @@ impl ServerKey {
             }
         };
 
-        self.add_assign_with_carry(lhs, rhs, None);
+        self.add_assign_with_carry_parallelized(lhs, rhs, None);
     }
 
     /// Computes the addition of two ciphertexts and returns the overflow flag
@@ -424,8 +424,12 @@ impl ServerKey {
     }
 
     /// Does lhs += (rhs + carry)
-    pub fn add_assign_with_carry<T>(&self, lhs: &mut T, rhs: &T, input_carry: Option<&BooleanBlock>)
-    where
+    pub fn add_assign_with_carry_parallelized<T>(
+        &self,
+        lhs: &mut T,
+        rhs: &T,
+        input_carry: Option<&BooleanBlock>,
+    ) where
         T: IntegerRadixCiphertext,
     {
         if !lhs.block_carries_are_empty() {
@@ -442,7 +446,7 @@ impl ServerKey {
             &cloned_rhs
         };
 
-        self.advanced_add_assign_with_carry(
+        self.advanced_add_assign_with_carry_parallelized(
             lhs.blocks_mut(),
             rhs.blocks(),
             input_carry,
@@ -462,7 +466,7 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        self.advanced_add_assign_with_carry(
+        self.advanced_add_assign_with_carry_parallelized(
             lhs.blocks_mut(),
             rhs.blocks(),
             input_carry,
@@ -486,7 +490,7 @@ impl ServerKey {
     /// - blocks must have at least one bit of message and one bit of carry
     ///
     /// Returns `Some(...)` if requested_flag != ComputationFlags::None
-    pub(crate) fn advanced_add_assign_with_carry(
+    pub(crate) fn advanced_add_assign_with_carry_parallelized(
         &self,
         lhs: &mut [Ciphertext],
         rhs: &[Ciphertext],
@@ -501,7 +505,12 @@ impl ServerKey {
                 requested_flag,
             )
         } else {
-            self.advanced_add_assign_with_carry_sequential(lhs, rhs, input_carry, requested_flag)
+            self.advanced_add_assign_with_carry_sequential_parallelized(
+                lhs,
+                rhs,
+                input_carry,
+                requested_flag,
+            )
         }
     }
 
@@ -514,7 +523,7 @@ impl ServerKey {
     /// - blocks must have at least one bit of message and one bit of carry
     ///
     /// Returns `Some(...)` if requested_flag != ComputationFlags::None
-    pub(crate) fn advanced_add_assign_with_carry_sequential(
+    pub(crate) fn advanced_add_assign_with_carry_sequential_parallelized(
         &self,
         lhs: &mut [Ciphertext],
         rhs: &[Ciphertext],
@@ -576,7 +585,7 @@ impl ServerKey {
 
                 if requested_flag == OutputFlag::Overflow {
                     s.spawn(|_| {
-                        // Computing the overflow flag requires and extra step for the first block
+                        // Computing the overflow flag requires an extra step for the first block
 
                         let overflow_flag = overflow_flag.as_mut().unwrap();
                         let num_bits_in_message = self.message_modulus().0.ilog2() as u64;
@@ -664,7 +673,6 @@ impl ServerKey {
                 if requested_flag == OutputFlag::Overflow {
                     s.spawn(|_| {
                         let overflow_flag_block = overflow_flag.as_mut().unwrap();
-                        //let shifted_carry = self.key.unchecked_scalar_mul(&carry, 2);
                         // Computing the overflow flag requires and extra step for the first block
                         let overflow_flag_lut = self.key.generate_lookup_table(|block| {
                             let input_carry = block & 1;
@@ -681,7 +689,7 @@ impl ServerKey {
                 }
             });
 
-            return match requested_flag {
+            match requested_flag {
                 OutputFlag::None => None,
                 OutputFlag::Overflow => {
                     assert!(
@@ -694,15 +702,13 @@ impl ServerKey {
                     carry.degree = Degree::new(1);
                     Some(BooleanBlock::new_unchecked(carry))
                 }
-            };
-        }
-
-        // 1_X parameters
-        //
-        // Same idea as other algorithms, however since we have 1 bit per block
-        // we do not have to resolve any inner propagation but it adds one more
-        // sequential PBS when we are interested in the OverflowFlag
-        if self.key.message_modulus.0 == 2 {
+            }
+        } else if self.key.message_modulus.0 == 2 {
+            // 1_X parameters
+            //
+            // Same idea as other algorithms, however since we have 1 bit per block
+            // we do not have to resolve any inner propagation but it adds one more
+            // sequential PBS when we are interested in the OverflowFlag
             fn block_add_assign_returning_carry(
                 sks: &ServerKey,
                 lhs: &mut Ciphertext,
@@ -735,7 +741,7 @@ impl ServerKey {
                 &carry,
             );
 
-            return match requested_flag {
+            match requested_flag {
                 OutputFlag::None => None,
                 OutputFlag::Overflow => {
                     let overflowed = self.key.not_equal(&output_carry, &carry);
@@ -745,15 +751,15 @@ impl ServerKey {
                     output_carry.degree = Degree::new(1);
                     Some(BooleanBlock::new_unchecked(output_carry))
                 }
-            };
+            }
+        } else {
+            panic!(
+                "Invalid combo of message modulus ({}) and carry modulus ({}) \n\
+                This function requires the message modulus >= 2 and carry modulus >= message_modulus \n\
+                I.e. PARAM_MESSAGE_X_CARRY_Y where X >= 1 and Y >= X.",
+                self.key.message_modulus.0, self.key.carry_modulus.0
+            );
         }
-
-        panic!(
-            "Invalid combo of message modulus ({}) and carry modulus ({}) \n\
-            This function requires the message modulus >= 2 and carry modulus >= message_modulus \n\
-            I.e. PARAM_MESSAGE_X_CARRY_Y where X >= 1 and Y >= X.",
-            self.key.message_modulus.0, self.key.carry_modulus.0
-        );
     }
 
     /// Does lhs += (rhs + carry)
@@ -911,7 +917,7 @@ impl ServerKey {
             let first_grouping_inner_propagation_luts = (0..grouping_size - 1)
                 .map(|index| {
                     self.key.generate_lookup_table(|propa_cum_sum_block| {
-                        let carry = propa_cum_sum_block & (1 << index);
+                        let carry = (propa_cum_sum_block >> index) & 1;
                         if carry != 0 {
                             2 // Generates
                         } else {
@@ -1006,7 +1012,7 @@ impl ServerKey {
                 .for_each(|(i, cum_sum_block)| {
                     let grouping_index = i / grouping_size;
                     let is_in_first_grouping = grouping_index == 0;
-                    let index_in_grouping = i % (grouping_size);
+                    let index_in_grouping = i % grouping_size;
 
                     let lut = if is_in_first_grouping {
                         if index_in_grouping == grouping_size - 1 {
@@ -1064,10 +1070,7 @@ impl ServerKey {
                 .iter_mut()
                 .zip(propagation_simulators.iter())
                 .for_each(|(block, simulator)| {
-                    crate::core_crypto::algorithms::lwe_ciphertext_add_assign(
-                        &mut block.ct,
-                        &simulator.ct,
-                    );
+                    self.key.unchecked_add_assign(block, simulator);
                 });
 
             match requested_flag {
@@ -1094,8 +1097,7 @@ impl ServerKey {
             let luts = (0..grouping_size - 1)
                 .map(|index| {
                     self.key.generate_lookup_table(|propa_cum_sum_block| {
-                        let carry = propa_cum_sum_block & (1 << (index + 1));
-                        u64::from(carry != 0)
+                        (propa_cum_sum_block >> (index + 1)) & 1
                     })
                 })
                 .collect::<Vec<_>>();
@@ -1103,22 +1105,18 @@ impl ServerKey {
             groupings_pgns.rotate_left(1);
             let mut resolved_carries =
                 vec![self.key.create_trivial(0), groupings_pgns.pop().unwrap()];
+
             for chunk in groupings_pgns.chunks(grouping_size - 1) {
                 let mut cum_sums = chunk.to_vec();
                 self.key
                     .unchecked_add_assign(&mut cum_sums[0], resolved_carries.last().unwrap());
 
-                for i in [1, 2] {
-                    if i == 1 && cum_sums.len() < 2 {
-                        continue;
+                if chunk.len() > 1 {
+                    let mut accumulator = cum_sums[0].clone();
+                    for block in cum_sums[1..].iter_mut() {
+                        self.key.unchecked_add_assign(&mut accumulator, block);
+                        block.clone_from(&accumulator);
                     }
-                    if i == 2 && cum_sums.len() < 3 {
-                        continue;
-                    }
-                    // All this just to do add_assign(&mut cum_sum[i], &cum_sum[i-1])
-                    let (l, r) = cum_sums.split_at_mut(i);
-                    let llen = l.len();
-                    self.key.unchecked_add_assign(&mut r[0], &l[llen - 1]);
                 }
 
                 cum_sums
@@ -1175,11 +1173,8 @@ impl ServerKey {
                 .enumerate()
                 .for_each(|(i, block)| {
                     let grouping_index = i / grouping_size;
-                    let borrow = &resolved_carries[grouping_index];
-                    crate::core_crypto::algorithms::lwe_ciphertext_add_assign(
-                        &mut block.ct,
-                        &borrow.ct,
-                    );
+                    let carry = &resolved_carries[grouping_index];
+                    self.key.unchecked_add_assign(block, carry);
 
                     self.key
                         .apply_lookup_table_assign(block, &message_extract_lut)
@@ -1311,9 +1306,6 @@ impl ServerKey {
                 };
                 self.key
                     .generate_many_lookup_table(&[&first_block_state_fn, &shift_block_fn])
-            } else if (blocks.len() - 1) <= grouping_size {
-                // The last block is in the first grouping
-                first_grouping_luts[2].clone()
             } else {
                 first_grouping_luts[2].clone()
             }
