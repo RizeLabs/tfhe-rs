@@ -70,9 +70,21 @@ jobs:
           backend: hyperstack
           profile: single-h100
 
+  reboot-instance:
+    name: Reboot Hyperstack VM
+    needs: setup-instance
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    timeout-minutes: 1440 # 24 hours
+    steps:
+      - name: Reboot
+        run: |
+          sudo apt-get install cron
+          sudo reboot now
+          @reboot nvidia-smi
+
   cuda-tests-linux:
     name: CUDA H100 tests
-    needs: [ should-run, setup-instance ]
+    needs: [ should-run, setup-instance, reboot-instance ]
     if: github.event_name != 'pull_request' ||
       (github.event_name == 'pull_request' && needs.setup-instance.result != 'skipped')
     concurrency:
@@ -134,10 +146,6 @@ jobs:
             echo "HOME=/home/ubuntu";
           } >> "${GITHUB_ENV}"
 
-      - name: Check device is detected
-        if: ${{ !cancelled() }}
-        run: nvidia-smi
-
       - name: Run core crypto and internal CUDA backend tests
         run: |
           make test_core_crypto_gpu
@@ -165,7 +173,7 @@ jobs:
 
   slack-notify:
     name: Slack Notification
-    needs: [ setup-instance, cuda-tests-linux ]
+    needs: [ setup-instance, reboot-instance, cuda-tests-linux ]
     runs-on: ubuntu-latest
     if: ${{ always() && needs.cuda-tests-linux.result != 'skipped' }}
     continue-on-error: true
@@ -179,7 +187,7 @@ jobs:
   teardown-instance:
     name: Teardown instance (cuda-h100-tests)
     if: ${{ always() && needs.setup-instance.result != 'skipped' }}
-    needs: [ setup-instance, cuda-tests-linux ]
+    needs: [ setup-instance, reboot-instance, cuda-tests-linux ]
     runs-on: ubuntu-latest
     steps:
       - name: Stop instance

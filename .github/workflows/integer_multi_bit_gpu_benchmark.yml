@@ -51,9 +51,21 @@ jobs:
           backend: hyperstack
           profile: single-h100
 
+  reboot-instance:
+    name: Reboot Hyperstack VM
+    needs: setup-instance
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    timeout-minutes: 1440 # 24 hours
+    steps:
+      - name: Reboot
+        run: |
+          sudo apt-get install cron
+          sudo reboot now
+          @reboot nvidia-smi
+
   cuda-integer-multi-bit-benchmarks:
     name: Execute GPU integer multi-bit benchmarks
-    needs: setup-instance
+    needs: [ setup-instance, reboot-instance ]
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     timeout-minutes: 1440 # 24 hours
     strategy:
@@ -133,10 +145,6 @@ jobs:
         run: |
           echo "BENCH_OP_FLAVOR=fast_default" >> "${GITHUB_ENV}"
 
-      - name: Check device is detected
-        if: ${{ !cancelled() }}
-        run: nvidia-smi
-
       - name: Run multi-bit benchmarks with AVX512
         run: |
           make bench_unsigned_integer_multi_bit_gpu
@@ -196,7 +204,7 @@ jobs:
 
   slack-notify:
     name: Slack Notification
-    needs: [ setup-instance, cuda-integer-multi-bit-benchmarks ]
+    needs: [ setup-instance, reboot-instance, cuda-integer-multi-bit-benchmarks ]
     runs-on: ubuntu-latest
     if: ${{ !success() && !cancelled() }}
     continue-on-error: true
@@ -210,7 +218,7 @@ jobs:
   teardown-instance:
     name: Teardown instance (cuda-integer-full-benchmarks)
     if: ${{ always() && needs.setup-instance.result != 'skipped' }}
-    needs: [ setup-instance, cuda-integer-multi-bit-benchmarks, slack-notify ]
+    needs: [ setup-instance, reboot-instance, cuda-integer-multi-bit-benchmarks, slack-notify ]
     runs-on: ubuntu-latest
     steps:
       - name: Stop instance
