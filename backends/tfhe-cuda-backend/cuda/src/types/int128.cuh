@@ -1,6 +1,7 @@
 #ifndef CNCRT_INT128_CUH
 #define CNCRT_INT128_CUH
 
+#include <cstdint>
 // abseil's int128 type
 // licensed under Apache license
 

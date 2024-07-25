@@ -1,6 +1,7 @@
 #ifndef CNCRT_TORUS_CUH
 #define CNCRT_TORUS_CUH
 
+#include "device.h"
 #include "types/int128.cuh"
 #include <limits>
 
