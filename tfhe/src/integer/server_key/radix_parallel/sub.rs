@@ -293,7 +293,7 @@ impl ServerKey {
             }
         };
 
-        self.unchecked_unsigned_overflowing_sub(lhs, rhs)
+        self.unchecked_unsigned_overflowing_sub_parallelized(lhs, rhs)
     }
 
     pub fn unchecked_unsigned_overflowing_sub_parallelized(

@@ -14,10 +14,10 @@ pub(crate) enum OutputFlag {
     /// The overflow flag is the flag that tells whether the input carry bit onto the last bit
     /// is different than the output bit.
     ///
-    /// This is usefull to know if a signed addition overflowed (in 2's complement)
+    /// This is useful to know if a signed addition overflowed (in 2's complement)
     Overflow,
     /// The carry flag is simply the carry bit that the output from the last pair of blocks
-    /// in an addtion.
+    /// in an addition.
     ///
     /// This is useful to know if an unsigned addition overflowed.
     Carry,
