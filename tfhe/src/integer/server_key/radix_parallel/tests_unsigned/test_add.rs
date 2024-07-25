@@ -339,8 +339,8 @@ where
     for num_blocks in 1..MAX_NB_CTXT {
         let modulus = unsigned_modulus(cks.parameters().message_modulus(), num_blocks as u32);
 
-        let clear_1 = rng.gen::<u64>() % modulus;
         let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
 
         let ctxt_0 = cks.as_ref().encrypt_radix(clear_0, num_blocks);
         let ctxt_1 = cks.as_ref().encrypt_radix(clear_1, num_blocks);
@@ -348,7 +348,7 @@ where
         let mut ct_res = executor.execute((&ctxt_0, &ctxt_1));
         let tmp_ct = executor.execute((&ctxt_0, &ctxt_1));
 
-        // panic_if_any_block_is_not_clean(&ct_res, &cks);
+        panic_if_any_block_is_not_clean(&ct_res, &cks);
         assert_eq!(ct_res, tmp_ct);
 
         clear = clear_0.wrapping_add(clear_1) % modulus;
@@ -361,7 +361,7 @@ where
 
         for _ in 0..nb_tests_smaller {
             ct_res = executor.execute((&ct_res, &ctxt_0));
-            // panic_if_any_block_is_not_clean(&ct_res, &cks);
+            panic_if_any_block_is_not_clean(&ct_res, &cks);
 
             let result = (clear + clear_0) % modulus;
 
