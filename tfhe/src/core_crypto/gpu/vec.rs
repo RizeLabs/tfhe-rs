@@ -345,6 +345,20 @@ impl<T: Numeric> CudaVec<T> {
         }
     }
 
+    /// Returns a copy of the vector
+    ///
+    /// # Safety
+    ///
+    /// - [CudaStreams::synchronize] __must__ be called as soon as synchronization is required
+    pub unsafe fn duplicate(&self, streams: &CudaStreams, gpu_index: u32) -> Self {
+        // Copy to the GPU
+        let mut d_vec = Self::new_async(self.len, streams, gpu_index);
+        d_vec.copy_from_gpu_async(self, streams, gpu_index);
+        streams.synchronize();
+
+        d_vec
+    }
+
     #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn as_mut_c_ptr(&mut self, gpu_index: u32) -> *mut c_void {
         self.ptr[gpu_index as usize]

@@ -628,6 +628,17 @@ extern "C" {
         gpu_count: u32,
         mem_ptr: *mut *mut i8,
     );
+    pub fn cuda_glwe_sample_extract_64(
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        lwe_array_out: *mut c_void,
+        glwe_in: *const c_void,
+        nth_array: *const u32,
+        num_samples: u32,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+    );
 
     pub fn scratch_cuda_integer_radix_comparison_kb_64(
         streams: *const *mut c_void,
