@@ -40,10 +40,7 @@ fn should_parallel_propagation_be_faster(
     num_blocks: usize,
     num_threads: usize,
 ) -> bool {
-    // Measures have shown that using a parallelized algorithm degrades
-    // the latency of a PBS, so we take that into account.
-    // (This factor is a bit pessimistic).
-    const PARALLEL_LATENCY_PENALTY: usize = 2;
+    const PARALLEL_LATENCY_PENALTY: usize = 1;
     // However that penalty only kicks in when certain level of
     // parallelism is used
     let penalty_threshold = num_threads / 2;
@@ -1449,53 +1446,116 @@ mod tests {
     }
 
     #[test]
-    fn test_hillis_steele_choice_128_threads() {
-        // m6i.metal like number of threads
-        const NUM_THREADS: usize = 128;
-        // 16, 32, 64, 128, 256 512 bits
-        for num_blocks in [8, 16, 32, 64, 128, 256] {
-            assert!(
-                should_parallel_propagation_be_faster(16, num_blocks, NUM_THREADS),
-                "Expected hillis and steele to be chosen for {num_blocks} blocks and {NUM_THREADS} threads"
-            );
+    fn test_propagation_choice_ci_run_filter() {
+        struct ExpectedChoices {
+            num_threads: usize,
+            bit_sizes: Vec<(usize, bool)>,
         }
-        // 8 bits
-        assert!(!should_parallel_propagation_be_faster(16, 4, NUM_THREADS),);
-    }
 
-    #[test]
-    fn test_hillis_steele_choice_12_threads() {
-        const NUM_THREADS: usize = 12;
-        // 8, 16, 32, 64, 128, 256, 512 bits
-        for num_blocks in [4, 8, 16, 32, 64, 128, 256] {
-            assert!(
-                !should_parallel_propagation_be_faster(16, num_blocks, NUM_THREADS),
-                "Expected hillis and steele to *not* be chosen for {num_blocks} blocks and {NUM_THREADS} threads"
-            );
+        // These cases have been tested in real conditions by running benchmarks for
+        // add_parallelized with `RAYON_NUM_THREADS`
+        let cases = [
+            ExpectedChoices {
+                num_threads: 2,
+                bit_sizes: vec![
+                    (2, false),
+                    (4, false),
+                    (8, false),
+                    (16, false),
+                    (32, false),
+                    (64, false),
+                    (128, false),
+                    (256, false),
+                    (512, false),
+                ],
+            },
+            ExpectedChoices {
+                num_threads: 4,
+                bit_sizes: vec![
+                    (2, false),
+                    (4, false),
+                    (8, true),
+                    (16, true),
+                    (32, true),
+                    (64, true),
+                    (128, true),
+                    (256, false),
+                    (512, false),
+                ],
+            },
+            ExpectedChoices {
+                num_threads: 8,
+                bit_sizes: vec![
+                    (2, false),
+                    (4, false),
+                    (8, true),
+                    (16, true),
+                    (32, true),
+                    (64, true),
+                    (128, true),
+                    (256, false),
+                    (512, false),
+                ],
+            },
+            ExpectedChoices {
+                num_threads: 12,
+                bit_sizes: vec![
+                    (2, false),
+                    (4, false),
+                    (8, true),
+                    (16, true),
+                    (32, true),
+                    (64, true),
+                    (128, true),
+                    (256, true),
+                    (512, true),
+                ],
+            },
+            ExpectedChoices {
+                num_threads: 128,
+                bit_sizes: vec![
+                    (2, false),
+                    (4, false),
+                    (8, true),
+                    (16, true),
+                    (32, true),
+                    (64, true),
+                    (128, true),
+                    (256, true),
+                    (512, true),
+                ],
+            },
+        ];
+
+        const FULL_MODULUS: usize = 32; // This is 2_2 parameters
+
+        fn bool_to_algo_name(parallel_chosen: bool) -> &'static str {
+            if parallel_chosen {
+                "parallel"
+            } else {
+                "sequential"
+            }
         }
-    }
 
-    #[test]
-    fn test_hillis_steele_choice_8_threads() {
-        const NUM_THREADS: usize = 8;
-        // 8, 16, 32, 64, 128, 256, 512 bits
-        for num_blocks in [4, 8, 16, 32, 64, 128, 256] {
-            assert!(
-                !should_parallel_propagation_be_faster(16, num_blocks, NUM_THREADS),
-                "Expected hillis and steele to *not* be chosen for {num_blocks} blocks and {NUM_THREADS} threads"
-            );
-        }
-    }
-
-    #[test]
-    fn test_hillis_steele_choice_4_threads() {
-        const NUM_THREADS: usize = 4;
-        // 8, 16, 32, 64, 128, 256, 512 bits
-        for num_blocks in [4, 8, 16, 32, 64, 128, 256] {
-            assert!(
-                !should_parallel_propagation_be_faster(16, num_blocks, NUM_THREADS),
-                "Expected hillis and steele to *not* be chosen for {num_blocks} blocks and {NUM_THREADS} threads"
-            );
+        for case in cases {
+            for (bit_size, expect_parallel) in case.bit_sizes {
+                let num_blocks = bit_size / 2;
+                let chose_parallel = should_parallel_propagation_be_faster(
+                    FULL_MODULUS,
+                    num_blocks,
+                    case.num_threads,
+                );
+                assert_eq!(
+                    chose_parallel,
+                    expect_parallel,
+                    "Wrong propagation algorithm chosen for {bit_size} bits ({num_blocks} blocks) and {} threads\n\
+                        Expected '{}' but '{}' was chosen\
+                    ",
+                    case.num_threads,
+                    bool_to_algo_name(expect_parallel),
+                    bool_to_algo_name(chose_parallel)
+                );
+            }
         }
     }
 }
