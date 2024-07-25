@@ -137,7 +137,7 @@ impl ClientKey {
     /// // Generate the client key, that can encrypt in
     /// // radix and crt decomposition, where each block of the decomposition
     /// // have over 2 bits of message modulus.
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    /// let _cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     /// ```
     pub fn new<P>(parameter_set: P) -> Self
     where
@@ -162,7 +162,7 @@ impl ClientKey {
     /// // have over 2 bits of message modulus.
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
-    /// let key = cks.into_raw_parts();
+    /// let _key = cks.into_raw_parts();
     /// ```
     pub fn into_raw_parts(self) -> ShortintClientKey {
         self.key
@@ -183,7 +183,7 @@ impl ClientKey {
     ///
     /// let key = cks.into_raw_parts();
     ///
-    /// let cks = ClientKey::from_raw_parts(key);
+    /// let _cks = ClientKey::from_raw_parts(key);
     /// ```
     pub fn from_raw_parts(key: ShortintClientKey) -> Self {
         Self { key }
@@ -478,7 +478,6 @@ impl ClientKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    /// let num_block = 4;
     ///
     /// let msg = 2_u64;
     ///
@@ -496,7 +495,7 @@ impl ClientKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::integer::{gen_keys_radix, BooleanBlock};
+    /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// // We have 4 * 2 = 8 bits of message
@@ -600,7 +599,7 @@ impl ClientKey {
     /// let basis: Vec<u64> = vec![2, 3, 5];
     ///
     /// // Encryption:
-    /// let mut ct = cks.encrypt_crt(msg, basis);
+    /// let ct = cks.encrypt_crt(msg, basis);
     ///
     /// // Decryption:
     /// let dec = cks.decrypt_crt(&ct);
@@ -677,7 +676,7 @@ impl ClientKey {
     /// let msg = 27_u64;
     /// let basis: Vec<u64> = vec![2, 3, 5];
     /// // Encryption of one message:
-    /// let mut ct = cks.encrypt_native_crt(msg, basis);
+    /// let ct = cks.encrypt_native_crt(msg, basis);
     ///
     /// // Decryption:
     /// let dec = cks.decrypt_native_crt(&ct);

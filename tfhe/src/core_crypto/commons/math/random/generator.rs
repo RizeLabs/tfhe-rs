@@ -98,7 +98,7 @@ impl From<Seed> for CompressionSeed {
 /// for child in children.into_iter() {
 ///     assert_eq!(child.remaining_bytes(), Some(2));
 ///     std::thread::spawn(move || {
-///         let child = child;
+///         let _child = child;
 ///         // use the prng to generate 2 bytes.
 ///         // ...
 ///     });
@@ -120,7 +120,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// use concrete_csprng::generators::SoftwareRandomGenerator;
     /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
-    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
+    /// let _generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// ```
     pub fn new(seed: Seed) -> Self {
         Self(G::new(seed))
@@ -136,7 +136,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// assert_eq!(generator.remaining_bytes(), None);
-    /// let mut generator = generator.try_fork(1, 50).unwrap().next().unwrap();
+    /// let generator = generator.try_fork(1, 50).unwrap().next().unwrap();
     /// assert_eq!(generator.remaining_bytes(), Some(50));
     /// ```
     pub fn remaining_bytes(&self) -> Option<usize> {
@@ -154,7 +154,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let children = generator.try_fork(5, 50).unwrap().collect::<Vec<_>>();
+    /// let _children = generator.try_fork(5, 50).unwrap().collect::<Vec<_>>();
     /// ```
     pub fn try_fork(
         &mut self,
@@ -177,9 +177,9 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     ///
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     ///
-    /// let random = generator.random_from_distribution::<u8, _>(Uniform);
-    /// let random = generator.random_from_distribution::<i8, _>(Uniform);
-    /// let random = generator.random_from_distribution::<u64, _>(Gaussian {
+    /// let _random = generator.random_from_distribution::<u8, _>(Uniform);
+    /// let _random = generator.random_from_distribution::<i8, _>(Uniform);
+    /// let _random = generator.random_from_distribution::<u64, _>(Gaussian {
     ///     mean: 0.0,
     ///     std: 1.0,
     /// });
@@ -207,8 +207,8 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     ///
     /// let custom_modulus = CiphertextModulus::new((1 << 64) - (1 << 32) + 1);
     ///
-    /// let random = generator.random_from_distribution_custom_mod::<u64, _>(Uniform, custom_modulus);
-    /// let random = generator.random_from_distribution_custom_mod::<u64, _>(
+    /// let _random = generator.random_from_distribution_custom_mod::<u64, _>(Uniform, custom_modulus);
+    /// let _random = generator.random_from_distribution_custom_mod::<u64, _>(
     ///     Gaussian {
     ///         mean: 0.0,
     ///         std: 1.0,
@@ -429,17 +429,17 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     ///
-    /// let random = generator.random_uniform::<u8>();
-    /// let random = generator.random_uniform::<u16>();
-    /// let random = generator.random_uniform::<u32>();
-    /// let random = generator.random_uniform::<u64>();
-    /// let random = generator.random_uniform::<u128>();
+    /// let _random = generator.random_uniform::<u8>();
+    /// let _random = generator.random_uniform::<u16>();
+    /// let _random = generator.random_uniform::<u32>();
+    /// let _random = generator.random_uniform::<u64>();
+    /// let _random = generator.random_uniform::<u128>();
     ///
-    /// let random = generator.random_uniform::<i8>();
-    /// let random = generator.random_uniform::<i16>();
-    /// let random = generator.random_uniform::<i32>();
-    /// let random = generator.random_uniform::<i64>();
-    /// let random = generator.random_uniform::<i128>();
+    /// let _random = generator.random_uniform::<i8>();
+    /// let _random = generator.random_uniform::<i16>();
+    /// let _random = generator.random_uniform::<i32>();
+    /// let _random = generator.random_uniform::<i64>();
+    /// let _random = generator.random_uniform::<i128>();
     /// ```
     pub fn random_uniform<Scalar>(&mut self) -> Scalar
     where
@@ -460,15 +460,15 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     ///
-    /// let random =
+    /// let _random =
     ///     generator.random_uniform_custom_mod::<u8>(CiphertextModulus::try_new(1 << 8).unwrap());
-    /// let random =
+    /// let _random =
     ///     generator.random_uniform_custom_mod::<u16>(CiphertextModulus::try_new(1 << 8).unwrap());
-    /// let random =
+    /// let _random =
     ///     generator.random_uniform_custom_mod::<u32>(CiphertextModulus::try_new(1 << 8).unwrap());
-    /// let random =
+    /// let _random =
     ///     generator.random_uniform_custom_mod::<u64>(CiphertextModulus::try_new(1 << 8).unwrap());
-    /// let random =
+    /// let _random =
     ///     generator.random_uniform_custom_mod::<u128>(CiphertextModulus::try_new(1 << 8).unwrap());
     /// ```
     pub fn random_uniform_custom_mod<Scalar>(
@@ -552,7 +552,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let random: u32 = generator.random_uniform_binary();
+    /// let _random: u32 = generator.random_uniform_binary();
     /// ```
     pub fn random_uniform_binary<Scalar>(&mut self) -> Scalar
     where
@@ -590,7 +590,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let random: u32 = generator.random_uniform_ternary();
+    /// let _random: u32 = generator.random_uniform_ternary();
     /// ```
     pub fn random_uniform_ternary<Scalar>(&mut self) -> Scalar
     where
@@ -812,7 +812,7 @@ impl<G: ParallelByteRandomGenerator> RandomGenerator<G> {
     /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let children = generator.try_fork(5, 50).unwrap().collect::<Vec<_>>();
+    /// let _children = generator.try_fork(5, 50).unwrap().collect::<Vec<_>>();
     /// ```
     pub fn par_try_fork(
         &mut self,

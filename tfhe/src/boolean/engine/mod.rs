@@ -378,7 +378,7 @@ impl BooleanEngine {
     /// BooleanEngine::replace_thread_local(boolean_engine);
     ///
     /// // This uses the engine create earlier
-    /// let (cks, sks) = tfhe::boolean::gen_keys();
+    /// let (_cks, _sks) = tfhe::boolean::gen_keys();
     /// ```
     pub fn replace_thread_local(new_engine: Self) {
         Self::with_thread_local_mut(|local_engine| {

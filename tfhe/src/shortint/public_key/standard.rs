@@ -31,7 +31,7 @@ impl PublicKey {
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
-    /// let pk = PublicKey::new(&cks);
+    /// let _pk = PublicKey::new(&cks);
     /// ```
     pub fn new(client_key: &ClientKey) -> Self {
         ShortintEngine::with_thread_local_mut(|engine| engine.new_public_key(client_key))
@@ -101,7 +101,7 @@ impl PublicKey {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    /// use tfhe::shortint::{ClientKey, PublicKey, ServerKey};
+    /// use tfhe::shortint::{ClientKey, PublicKey};
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);

@@ -34,7 +34,7 @@ use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 fn main() {
     // We generate a set of client/server keys, using the default parameters:
     let num_block = 4;
-    let (client_key, server_key) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block);
+    let (_client_key, _server_key) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block);
 }
 ```
 
@@ -49,14 +49,14 @@ use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 fn main() {
     // We generate a set of client/server keys, using the default parameters:
     let num_block = 4;
-    let (client_key, server_key) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block);
+    let (client_key, _server_key) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block);
 
     let msg1 = 128u64;
     let msg2 = 13u64;
 
     // We use the client key to encrypt two messages:
-    let ct_1 = client_key.encrypt(msg1);
-    let ct_2 = client_key.encrypt(msg2);
+    let _ct_1 = client_key.encrypt(msg1);
+    let _ct_2 = client_key.encrypt(msg2);
 }
 ```
 
@@ -82,8 +82,8 @@ fn main() {
     let msg2 = 13u64;
 
     // We use the public key to encrypt two messages:
-    let ct_1 = public_key.encrypt_radix(msg1, num_block);
-    let ct_2 = public_key.encrypt_radix(msg2, num_block);
+    let _ct_1 = public_key.encrypt_radix(msg1, num_block);
+    let _ct_2 = public_key.encrypt_radix(msg2, num_block);
 }
 ```
 

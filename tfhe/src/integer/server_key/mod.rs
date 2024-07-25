@@ -88,7 +88,7 @@ impl ServerKey {
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
     /// // Generate the server key:
-    /// let sks = ServerKey::new_radix_server_key(cks);
+    /// let _sks = ServerKey::new_radix_server_key(cks);
     /// ```
     pub fn new_radix_server_key<C>(cks: C) -> Self
     where
@@ -138,8 +138,6 @@ impl ServerKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     /// use tfhe::shortint::ServerKey as ShortintServerKey;
     ///
-    /// let size = 4;
-    ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
@@ -147,7 +145,7 @@ impl ServerKey {
     /// let shortint_sks = ShortintServerKey::new(cks.as_ref());
     ///
     /// // Generate the server key:
-    /// let sks = ServerKey::new_radix_server_key_from_shortint(shortint_sks);
+    /// let _sks = ServerKey::new_radix_server_key_from_shortint(shortint_sks);
     /// ```
     pub fn new_radix_server_key_from_shortint(
         mut key: crate::shortint::server_key::ServerKey,
@@ -171,8 +169,6 @@ impl ServerKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     /// use tfhe::shortint::ServerKey as ShortintServerKey;
     ///
-    /// let size = 4;
-    ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
@@ -180,7 +176,7 @@ impl ServerKey {
     /// let shortint_sks = ShortintServerKey::new(cks.as_ref());
     ///
     /// // Generate the server key:
-    /// let sks = ServerKey::new_crt_server_key_from_shortint(shortint_sks);
+    /// let _sks = ServerKey::new_crt_server_key_from_shortint(shortint_sks);
     /// ```
     pub fn new_crt_server_key_from_shortint(
         mut key: crate::shortint::server_key::ServerKey,

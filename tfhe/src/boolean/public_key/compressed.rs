@@ -22,9 +22,9 @@ impl CompressedPublicKey {
     /// use tfhe::boolean::prelude::*;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys();
+    /// let (cks, _sks) = gen_keys();
     ///
-    /// let cpks = CompressedPublicKey::new(&cks);
+    /// let _cpks = CompressedPublicKey::new(&cks);
     /// ```
     ///
     /// Decompressing the key
@@ -33,10 +33,10 @@ impl CompressedPublicKey {
     /// use tfhe::boolean::prelude::*;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys();
+    /// let (cks, _sks) = gen_keys();
     ///
     /// let cpks = CompressedPublicKey::new(&cks);
-    /// let pks = cpks.decompress();
+    /// let _pks = cpks.decompress();
     /// ```
     pub fn new(client_key: &ClientKey) -> Self {
         BooleanEngine::with_thread_local_mut(|engine| {

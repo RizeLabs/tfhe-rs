@@ -74,7 +74,7 @@ impl ClientKey {
     /// use tfhe::boolean::prelude::*;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys();
+    /// let (cks, _sks) = gen_keys();
     ///
     /// // Encryption of one message:
     /// let ct = cks.encrypt(true);
@@ -95,7 +95,7 @@ impl ClientKey {
     /// use tfhe::boolean::prelude::*;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys();
+    /// let (cks, _sks) = gen_keys();
     ///
     /// // Encryption of one message:
     /// let ct = cks.encrypt_compressed(true);
@@ -118,7 +118,7 @@ impl ClientKey {
     /// use tfhe::boolean::prelude::*;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys();
+    /// let (cks, _sks) = gen_keys();
     ///
     /// // Encryption of one message:
     /// let ct = cks.encrypt(true);
@@ -138,10 +138,9 @@ impl ClientKey {
     /// ```rust
     /// use tfhe::boolean::client_key::ClientKey;
     /// use tfhe::boolean::parameters::PARAMETERS_ERROR_PROB_2_POW_MINUS_165;
-    /// use tfhe::boolean::prelude::*;
     ///
     /// // Generate the client key:
-    /// let cks = ClientKey::new(&PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
+    /// let _cks = ClientKey::new(&PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
     /// ```
     pub fn new(parameter_set: &BooleanParameters) -> Self {
         BooleanEngine::with_thread_local_mut(|engine| engine.create_client_key(*parameter_set))
@@ -154,11 +153,10 @@ impl ClientKey {
     /// ```rust
     /// use tfhe::boolean::client_key::ClientKey;
     /// use tfhe::boolean::parameters::PARAMETERS_ERROR_PROB_2_POW_MINUS_165;
-    /// use tfhe::boolean::prelude::*;
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(&PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
-    /// let raw_parts = cks.into_raw_parts();
+    /// let _raw_parts = cks.into_raw_parts();
     /// ```
     pub fn into_raw_parts(
         self,
@@ -187,12 +185,11 @@ impl ClientKey {
     /// ```rust
     /// use tfhe::boolean::client_key::ClientKey;
     /// use tfhe::boolean::parameters::PARAMETERS_ERROR_PROB_2_POW_MINUS_165;
-    /// use tfhe::boolean::prelude::*;
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(&PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
     /// let (lwe_secret_key, glwe_secret_key, parameters) = cks.into_raw_parts();
-    /// let reconstructed_cks = ClientKey::new_from_raw_parts(lwe_secret_key, glwe_secret_key, parameters);
+    /// let _reconstructed_cks = ClientKey::new_from_raw_parts(lwe_secret_key, glwe_secret_key, parameters);
     pub fn new_from_raw_parts(
         lwe_secret_key: LweSecretKeyOwned<u32>,
         glwe_secret_key: GlweSecretKeyOwned<u32>,

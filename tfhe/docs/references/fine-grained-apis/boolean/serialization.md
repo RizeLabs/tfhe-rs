@@ -8,8 +8,8 @@ Here is an example using the `bincode` serialization library, which serializes t
 binary format:
 
 ```rust
+use std::io::{Read, Write};
 use std::fs::{File, create_dir_all};
-use std::io::{Write, Read};
 use tfhe::boolean::prelude::*;
 
 fn main() {
@@ -48,8 +48,8 @@ fn main() {
     let mut encoded_client_key: Vec<u8> = Vec::new();
     file.read_to_end(&mut encoded_client_key).expect("failed to read the key");
 
-// We deserialize the keys:
-    let loaded_server_key: ServerKey = bincode::deserialize(&encoded_server_key[..])
+    // We deserialize the keys:
+    let _loaded_server_key: ServerKey = bincode::deserialize(&encoded_server_key[..])
         .expect("failed to deserialize");
     let loaded_client_key: ClientKey = bincode::deserialize(&encoded_client_key[..])
         .expect("failed to deserialize");

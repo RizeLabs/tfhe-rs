@@ -33,7 +33,7 @@ fn mul_all(a: &FheUint128, b: &FheUint128, c: &FheUint128) -> FheUint128 {
 
 
 fn main() {
-    let (cks, sks) = generate_keys(ConfigBuilder::default().build());
+    let (_cks, sks) = generate_keys(ConfigBuilder::default().build());
     
     set_server_key(sks);
     
@@ -43,7 +43,7 @@ fn main() {
     
     // since all inputs are trivially encrypted, this is going to be
     // much faster
-    let result = mul_all(&a, &b, &c);
+    let _result = mul_all(&a, &b, &c);
 }
 ```
 

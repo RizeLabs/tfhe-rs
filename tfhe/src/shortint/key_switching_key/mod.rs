@@ -163,7 +163,7 @@ impl KeySwitchingKey {
     /// let (ck2, sk2) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
     /// // Generate the server key:
-    /// let ksk = KeySwitchingKey::new(
+    /// let _ksk = KeySwitchingKey::new(
     ///     (&ck1, Some(&sk1)),
     ///     (&ck2, &sk2),
     ///     PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,

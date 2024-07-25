@@ -32,7 +32,7 @@ impl CompressedPublicKey {
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
-    /// let pk = CompressedPublicKey::new(&cks);
+    /// let _pk = CompressedPublicKey::new(&cks);
     /// ```
     pub fn new(client_key: &ClientKey) -> Self {
         ShortintEngine::with_thread_local_mut(|engine| engine.new_compressed_public_key(client_key))

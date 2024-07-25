@@ -28,7 +28,7 @@ pub(in crate::high_level_api) use inner::{
 /// use tfhe::{generate_keys, ConfigBuilder};
 ///
 /// let config = ConfigBuilder::default().build();
-/// let (client_key, server_key) = generate_keys(config);
+/// let (_client_key, _server_key) = generate_keys(config);
 /// ```
 pub fn generate_keys<C: Into<Config>>(config: C) -> (ClientKey, ServerKey) {
     let client_kc = ClientKey::generate(config);

@@ -25,9 +25,10 @@ You can also create your own set of parameters. This is an `unsafe` operation as
 use tfhe::boolean::prelude::*;
 
 fn main() {
-// WARNING: might be insecure and/or incorrect
-// You can create your own set of parameters
-    let parameters = unsafe {
+    // WARNING: might be insecure and/or incorrect
+    // You can create your own set of parameters
+    #[allow(unused_unsafe)]
+    let _parameters = unsafe {
         BooleanParameters::new(
             LweDimension(586),
             GlweDimension(2),

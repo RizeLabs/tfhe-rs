@@ -54,7 +54,7 @@ impl ClientKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// // Generate the client key:
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    /// let _cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     /// ```
     pub fn new<P>(parameters: P) -> Self
     where
@@ -103,7 +103,7 @@ impl ClientKey {
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
-    /// let (glwe_secret_key, lwe_secret_key, parameters) = cks.into_raw_parts();
+    /// let (_glwe_secret_key, _lwe_secret_key, _parameters) = cks.into_raw_parts();
     /// ```
     pub fn into_raw_parts(
         self,
@@ -138,7 +138,7 @@ impl ClientKey {
     ///
     /// let (glwe_secret_key, lwe_secret_key, parameters) = cks.into_raw_parts();
     ///
-    /// let cks = ClientKey::from_raw_parts(glwe_secret_key, lwe_secret_key, parameters);
+    /// let _cks = ClientKey::from_raw_parts(glwe_secret_key, lwe_secret_key, parameters);
     /// ```
     pub fn from_raw_parts(
         glwe_secret_key: GlweSecretKeyOwned<u64>,

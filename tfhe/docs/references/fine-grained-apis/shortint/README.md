@@ -23,7 +23,7 @@ use tfhe::shortint::prelude::*;
 
 fn main()  {
     // We generate a set of client/server keys
-    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    let (_client_key, _server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 }
 ```
 
@@ -36,14 +36,14 @@ use tfhe::shortint::prelude::*;
 
 fn main() {
     // We generate a set of client/server keys
-   let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+   let (client_key, _server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 
     let msg1 = 1;
     let msg2 = 0;
 
     // We use the client key to encrypt two messages:
-    let ct_1 = client_key.encrypt(msg1);
-    let ct_2 = client_key.encrypt(msg2);
+    let _ct_1 = client_key.encrypt(msg1);
+    let _ct_2 = client_key.encrypt(msg2);
 }
 ```
 
@@ -63,8 +63,8 @@ fn main() {
     let msg2 = 0;
 
     // We use the client key to encrypt two messages:
-    let ct_1 = public_key.encrypt(msg1);
-    let ct_2 = public_key.encrypt(msg2);
+    let _ct_1 = public_key.encrypt(msg1);
+    let _ct_2 = public_key.encrypt(msg2);
 }
 ```
 

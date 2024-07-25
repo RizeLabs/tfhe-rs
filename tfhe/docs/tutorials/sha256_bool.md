@@ -208,7 +208,7 @@ This might be the trickiest operation to efficiently implement in a homomorphic 
 A better choice is to use Carry Lookahead Adder, which allows us to use the parallelized AND and XOR bitwise operations. With this design, our adder is around 50% faster than the Ripple Carry Adder.
 
 ```rust
-pub fn add(a: &[Ciphertext; 32], b: &[Ciphertext; 32], sk: &ServerKey) -> [Ciphertext; 32] {
+fn add(a: &[Ciphertext; 32], b: &[Ciphertext; 32], sk: &ServerKey) -> [Ciphertext; 32] {
     let propagate = xor(a, b, sk); // Parallelized bitwise XOR
     let generate = and(a, b, sk); // Parallelized bitwise AND
 
